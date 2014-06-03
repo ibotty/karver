@@ -29,75 +29,80 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TI
 import qualified Data.Vector as V
-import System.IO.Unsafe (unsafePerformIO)
 
 -- | Renders a template
-renderTemplate :: HashMap Text Value -- ^ Data map for variables inside
+renderTemplate :: (Functor m, Monad m)
+               => (Text -> m Text)   -- ^ load templates that are included
+               -> HashMap Text Value -- ^ Data map for variables inside
                                      --   a given template
                -> Text               -- ^ Template
-               -> Text
-renderTemplate varTable = encode
-  where encode :: Text -> Text
+               -> m Text
+renderTemplate include varTable = encode
+  where -- commented type sigs to resolv ambigious types
+        -- encode :: (Functor m, Monad m) => Text -> m Text
         encode tlp
-          | T.null tlp = tlp
+          | T.null tlp = return tlp
           | otherwise  = merge $
               case parseOnly templateParser tlp of
                 (Left err)  -> [LiteralTok $ T.pack err]
                 (Right res) -> res
 
-        merge :: [Token] -> Text
-        merge = T.concat . map (decodeToken varTable)
-        decodeToken _ (LiteralTok x)       = x
-        decodeToken vTable (IdentityTok x) =
+        -- merge :: (Functor m, Monad m) => [Token] -> m Text
+        merge = fmap T.concat . mapM (decodeToken varTable)
+
+        -- decodeToken :: (Functor m, Monad m) => HashMap Text Value -> Token -> m Text
+        decodeToken _ (LiteralTok x)       = return x
+        decodeToken vTable (IdentityTok x) = return $
           case H.lookup x vTable of
             (Just (Literal s)) -> s
             _                 -> T.empty
-        decodeToken vTable (ObjectTok i k) =
+        decodeToken vTable (ObjectTok i k) = return $
           case H.lookup i vTable of
             (Just (Object m)) ->
               case H.lookup k m of
                 (Just x) -> x
                 Nothing  -> T.empty
             _              -> T.empty
-        decodeToken vTable (ListTok a i) =
+        decodeToken vTable (ListTok a i) = return $
           case H.lookup a vTable of
             (Just (List l)) -> case l V.! i of
                                  (Literal t) -> t
                                  _           -> T.empty
             _               -> T.empty
-        decodeToken _ (ConditionTok c t f) =
-          if hasVariable c
-            then encode t
-            else encode f
+        decodeToken _ (ConditionTok c t f) = do
+          b <- hasVariable c
+          encode $ if b
+                       then t
+                       else f
           where hasVariable txt =
                   case parseOnly variableParser' txt of
-                    (Right res) ->
-                      if T.null $ decodeToken varTable res
-                        then False
-                        else True
-                    _           -> False
+                    (Right res) -> not . T.null <$> decodeToken varTable res
+                    _           -> return False
         decodeToken vTable (LoopTok a v b) =
           case H.lookup a vTable of
-            (Just (List l)) ->
+            (Just (List l)) -> do
               let toks = case parseOnly templateParser b of
                            (Left _)  -> []
                            (Right res) -> res
                   mapVars x = let vTable' = H.insert v x vTable
-                              in map (decodeToken vTable') toks
-              in if null toks
-                   then T.empty
-                   else T.concat . V.toList $ V.map (T.concat . mapVars) l
-            _               -> T.empty
+                              in mapM (decodeToken vTable') toks
+              if null toks
+                   then return T.empty
+                   else T.concat . V.toList <$> V.mapM (fmap T.concat . mapVars) l
+            _               -> return T.empty
         decodeToken _ (IncludeTok f) =
-          unsafePerformIO $ encode . T.init <$> TI.readFile (T.unpack f)
+          encode . T.init =<< include f
+
+loadTemplateFromDisc :: Text -> IO Text
+loadTemplateFromDisc = TI.readFile . T.unpack
 
 -- | Similar to renderTemplate, only it takes JSON 'Text' instead of
 -- a 'HashMap'
 renderTemplate' :: Text -- ^ JSON data, for variables inside a given
                         --   template
                 -> Text -- ^ Template
-                -> Text
+                -> IO Text
 renderTemplate' json tpl =
   case decode' . L.pack $ T.unpack json of
-    (Just hash) -> renderTemplate hash tpl
-    Nothing     -> T.empty
+    (Just hash) -> renderTemplate loadTemplateFromDisc hash tpl
+    Nothing     -> return T.empty
