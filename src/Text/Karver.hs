@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE LambdaCase #-}
 -- |
 -- Module:      Data.Karver
 -- Copyright:   Jeremy Hull 2013
@@ -20,81 +22,104 @@ import Text.Karver.Types
 import Text.Karver.Parse
 
 import Control.Applicative ((<$>))
+import Control.Monad.Trans.Except (ExceptT(ExceptT), runExceptT, throwE)
 import Data.Aeson (decode')
 import Data.Attoparsec.Text
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as H
+import Data.Monoid (Monoid(mappend, mempty))
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TI
+import Data.Typeable (Typeable)
 import qualified Data.Vector as V
+
+data KarverError = InvalidTemplate Text String
+                 | NoSuchInclude Text
+                 | LookupError Text
+                 | ManyErrors [KarverError]
+  deriving (Show, Read, Eq, Ord, Typeable)
+
+instance Monoid (KarverError) where
+  mappend e e' = ManyErrors [e, e']
+  mempty = ManyErrors []
 
 -- | Renders a template
 renderTemplate :: (Functor m, Monad m)
-               => (Text -> m Text)   -- ^ load templates that are included
+               => (Text -> m (Maybe Text))   -- ^ load templates that are included
+               -> (KarverError -> Either KarverError Text)
                -> HashMap Text Value -- ^ Data map for variables inside
                                      --   a given template
                -> Text               -- ^ Template
-               -> m Text
-renderTemplate include varTable = encode
+               -> m (Either KarverError Text)
+renderTemplate includer errHandler varTable = runExceptT . encode
   where -- commented type sigs to resolv ambigious types
-        -- encode :: (Functor m, Monad m) => Text -> m Text
+        errHandler' = ExceptT . return . errHandler
+
+        -- encode :: (Functor m, Monad m) => Text -> ExceptT KarverError m Text
         encode tlp
-          | T.null tlp = return tlp
-          | otherwise  = merge $
-              case parseOnly templateParser tlp of
-                (Left err)  -> [LiteralTok $ T.pack err]
-                (Right res) -> res
+          | T.null tlp = return T.empty
+          | otherwise  =
+                  case parseOnly templateParser tlp of
+                    Right tokens -> merge tokens
+                    Left err     -> errHandler' $ InvalidTemplate tlp err
 
-        -- merge :: (Functor m, Monad m) => [Token] -> m Text
-        merge = fmap T.concat . mapM (decodeToken varTable)
+        -- merge :: (Functor m, Monad m) => [Token] -> ExceptT KarverError m Text
+        merge tokens = T.concat <$> mapM (decodeToken varTable) tokens
 
-        -- decodeToken :: (Functor m, Monad m) => HashMap Text Value -> Token -> m Text
+        -- decodeToken :: (Functor m, Monad m) => HashMap Text Value -> Token -> ExceptT KarverError m Text
         decodeToken _ (LiteralTok x)       = return x
-        decodeToken vTable (IdentityTok x) = return $
+        decodeToken vTable (IdentityTok x) =
           case H.lookup x vTable of
-            (Just (Literal s)) -> s
-            _                 -> T.empty
-        decodeToken vTable (ObjectTok i k) = return $
+            (Just (Literal s)) -> return s
+            _                  -> errHandler' $ LookupError x
+        decodeToken vTable (ObjectTok i k) =
           case H.lookup i vTable of
-            (Just (Object m)) ->
-              case H.lookup k m of
-                (Just x) -> x
-                Nothing  -> T.empty
-            _              -> T.empty
-        decodeToken vTable (ListTok a i) = return $
+            (Just (Object m)) -> case H.lookup k m of
+                                   (Just x) -> return x
+                                   Nothing  -> errHandler' $ LookupError i
+            _                 -> errHandler' $ LookupError k
+        decodeToken vTable (ListTok a i) =
           case H.lookup a vTable of
             (Just (List l)) -> case l V.! i of
-                                 (Literal t) -> t
-                                 _           -> T.empty
-            _               -> T.empty
-        decodeToken _ (ConditionTok c t f) = do
-          b <- hasVariable c
-          encode $ if b
-                       then t
-                       else f
+                                 (Literal t) -> return t
+                                 _           -> errHandler' $ LookupError a
+            _               -> errHandler' $ LookupError a
+        decodeToken _ (ConditionTok c t f) =
+          hasVariable c >>= \b -> encode $ if b then t else f
           where hasVariable txt =
                   case parseOnly variableParser' txt of
-                    (Right res) -> not . T.null <$> decodeToken varTable res
-                    _           -> return False
+                    (Right res) -> hasVariable' <$> decodeToken varTable res
+                    (Left err)  -> case errHandler (InvalidTemplate txt err) of
+                                     Left err' -> throwE err'
+                                     Right res -> return . hasVariable' $ res
+                hasVariable' = not . T.null
         decodeToken vTable (LoopTok a v b) =
           case H.lookup a vTable of
             (Just (List l)) -> do
               let toks = case parseOnly templateParser b of
-                           (Left _)  -> []
-                           (Right res) -> res
+                           (Left _)    -> [] -- XXX call error handler
+                           (Right res) -> res :: [Token]
                   mapVars x = let vTable' = H.insert v x vTable
                               in mapM (decodeToken vTable') toks
               if null toks
                    then return T.empty
                    else T.concat . V.toList <$> V.mapM (fmap T.concat . mapVars) l
-            _               -> return T.empty
+            _               -> errHandler' $ LookupError a
         decodeToken _ (IncludeTok f) =
-          encode . T.init =<< include f
+          ExceptT (Right <$> includer f) >>= \case
+                            Nothing -> errHandler' $ NoSuchInclude f
+                            Just tmpl -> encode $ T.init tmpl
 
-loadTemplateFromDisc :: Text -> IO Text
-loadTemplateFromDisc = TI.readFile . T.unpack
+loadTemplateFromDisc :: Text -> IO (Maybe Text)
+loadTemplateFromDisc = fmap return . TI.readFile . T.unpack
+
+continueHandler :: KarverError -> Either KarverError Text
+continueHandler (InvalidTemplate tmpl _) = Right tmpl
+continueHandler (LookupError _) = Right T.empty
+continueHandler (NoSuchInclude err) = Right err
+continueHandler (ManyErrors _) = Right T.empty
 
 -- | Similar to renderTemplate, only it takes JSON 'Text' instead of
 -- a 'HashMap'
@@ -104,5 +129,7 @@ renderTemplate' :: Text -- ^ JSON data, for variables inside a given
                 -> IO Text
 renderTemplate' json tpl =
   case decode' . L.pack $ T.unpack json of
-    (Just hash) -> renderTemplate loadTemplateFromDisc hash tpl
+    (Just hash) -> renderTemplate loadTemplateFromDisc continueHandler hash tpl >>= \case
+                     Left err -> error $ "renderTemplate': something went wrong: " ++ show err
+                     Right a -> return a
     Nothing     -> return T.empty
