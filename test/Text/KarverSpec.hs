@@ -11,9 +11,8 @@ import System.IO.Unsafe (unsafePerformIO)
 import Test.Hspec
 
 renderer :: Text -> Text
-renderer t =
-  let json  = unsafePerformIO $ TI.readFile "test/json/test-data.json"
-  in renderTemplate' json t
+renderer t = unsafePerformIO $
+  TI.readFile "test/json/test-data.json" >>= flip renderTemplate' t
 
 spec :: Spec
 spec = do
