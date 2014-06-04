@@ -10,15 +10,64 @@
 -- Base types used throughout Karver.
 
 module Text.Karver.Types
-( Token(..)
-, Value(..)
+( Value(..)
+, Token(..)
+, BasicSYM(..)
+, IncludeSYM(..)
+, Variable(..)
+, Key(..)
+, Condition(..)
+, ListVariable(..)
+, Identifier(..)
+, duplicate
 ) where
 
-import Control.Applicative ((<$>))
-import qualified Data.Aeson as A
+-- import Control.Applicative ((<$>))
+-- import qualified Data.Aeson as A
+import Data.Monoid (Monoid)
 import Data.Text (Text)
-import Data.HashMap.Strict
-import Data.Vector
+import Data.HashMap.Strict (HashMap)
+import Data.Vector (Vector)
+
+newtype Variable = Variable Text
+  deriving (Eq, Ord, Read, Show)
+
+newtype Key = Key Text
+  deriving (Eq, Ord, Read, Show)
+
+newtype Condition = Condition Text -- ^ XXX: what should it be?
+  deriving (Eq, Ord, Read, Show)
+
+newtype ListVariable = ListVariable Text
+  deriving (Eq, Ord, Read, Show)
+
+newtype Identifier = Identifier Text
+  deriving (Eq, Ord, Read, Show)
+
+class Monoid repr => BasicSYM repr where
+    literal :: Text -> repr
+    identity :: Variable -> repr
+    object :: Variable -> Key -> repr
+    list :: Variable -> Int -> repr
+    condition :: Condition -> repr -> repr -> repr
+    loop :: ListVariable -> Identifier -> repr -> repr
+
+class BasicSYM repr => IncludeSYM repr where
+    include :: FilePath -> repr
+
+instance (BasicSYM repr, BasicSYM repr') => BasicSYM (repr, repr') where
+    literal x = (literal x, literal x)
+    identity var = (identity var, identity var)
+    object var key = (object var key, object var key)
+    list var ix = (list var ix, list var ix)
+    condition l (ifBody, ifBody') (elseBody, elseBody') = (condition l ifBody elseBody, condition l ifBody' elseBody')
+    loop l ident (body, body') = (loop l ident body, loop l ident body')
+
+instance (IncludeSYM repr, IncludeSYM repr') => IncludeSYM (repr, repr') where
+    include file = (include file, include file)
+
+duplicate :: (BasicSYM repr, BasicSYM repr') => (repr, repr') -> (repr, repr')
+duplicate = id
 
 -- | When dealing with the syntax of karver, we first translate the given
 -- 'Text' into 'Token's for easier manipulation. Each 'Token' type is
@@ -70,8 +119,8 @@ data Value = Literal Text
            --   'List's.
            deriving (Show, Eq)
 
-instance A.FromJSON Value where
-  parseJSON o@(A.Object _) = Object <$> A.parseJSON o
-  parseJSON a@(A.Array _)  = List <$> A.parseJSON a
-  parseJSON v              = Literal <$> A.parseJSON v
-  {-# INLINE parseJSON #-}
+-- instance A.FromJSON Value where
+--   parseJSON o@(A.Object _) = Object <$> A.parseJSON o
+--   parseJSON a@(A.Array _)  = List <$> A.parseJSON a
+--   parseJSON v              = Literal <$> A.parseJSON v
+--   {-# INLINE parseJSON #-}
