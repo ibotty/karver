@@ -2,56 +2,65 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Text.Karver.Compiler
-  ( ResolveIncludes(..)
-  , resolveIncludes
-  ) where
+  ( Renderer(..)
+  , Renderer'
+  , renderParsedTemplate
+  )
+  where
 
-import Control.Applicative ((<$>), (<*>))
-import Data.Monoid (Monoid, mempty, mappend, (<>))
+import Control.Applicative ((<$>))
+import Data.HashMap.Strict (HashMap)
+import Data.Monoid (Monoid, (<>), mappend, mconcat, mempty)
 import Data.Text (Text)
 import Text.Karver.Types
-import Text.Karver.Parse
-import Data.Attoparsec.Text
 
+import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
+import qualified Data.Vector as V
 
-newtype ResolvedIncludes repr = ResolvedIncludes repr
+type Renderer' = (KarverError -> Either KarverError Text)
+               -> HashMap Text Value
+               -> Either KarverError Renderer
 
-instance Monoid repr => Monoid (ResolvedIncludes repr) where
-    mempty = ResolvedIncludes mempty
-    mappend (ResolvedIncludes a) (ResolvedIncludes a') =
-      ResolvedIncludes $ a <> a'
+renderParsedTemplate :: (KarverError -> Either KarverError Text)
+                     -> HashMap Text Value
+                     -> Renderer'
+                     -> Either KarverError Renderer
+renderParsedTemplate handler ctx tmpl = tmpl handler ctx
 
-data ResolveIncludes repr = ResolveIncludes (FilePath -> Maybe Text) repr
+newtype Renderer = Renderer {rawRenderer :: Text}
 
-resolveIncludes :: (IncludeSYM repr, BasicSYM repr') => repr -> Maybe repr'
-resolveIncludes = undefined
+instance Monoid Renderer where
+    mempty = Renderer mempty
+    mappend (Renderer a) (Renderer a') =
+      Renderer $ a <> a'
 
-instance BasicSYM repr => BasicSYM (ResolvedIncludes repr) where
-    literal n = literal n
-    identity var = identity var
-    object v k  = object v k
-    list l v = list l v
-    condition c t f = condition c t f
-    loop l i b = loop l i b
+instance Monoid (Either KarverError Renderer) where
+    mempty = Right mempty
+    mappend (Left err) _ = Left err
+    mappend _ (Left err) = Left err
+    mappend (Right a) (Right a') = Right (a <> a')
 
-instance (BasicSYM repr, BasicSYM repr') => BasicSYM (ResolveIncludes repr -> Maybe repr') where
-    literal n _ = Just $ literal n
-    identity var _ = Just $ identity var
-    object v k  _ = Just $ object v k
-    list l v _ = Just $ list l v
-    condition c t f inc = condition c <$> t inc <*> f inc
-    loop l i b inc = loop l i <$> b inc
+instance JinjaSYM Renderer' where
+    literal n _ _ = Right $ Renderer n
 
-instance (IncludeSYM repr, BasicSYM repr') => IncludeSYM (ResolveIncludes repr -> Maybe repr') where
-    include f (ResolveIncludes inc r) = do
-      tmpl <- inc f
-      case parseOnly templateParser tmpl of
-        Right (ResolvedIncludes t) -> Just (t :: repr')
-        Left _ -> Nothing
+    variable var handler ctx =
+        case lookupVariable var ctx of
+          Just (Literal s) -> Right $ Renderer s
+          _                -> Renderer <$> handler (LookupError var)
 
--- pushIncludes :: IncludeSYM repr => (FilePath -> Maybe Text) -> (ResolveIncludes -> Maybe repr) -> Maybe repr
--- pushIncludes inc r = r (ResolveIncludes inc)
+    condition (VariableNotNull v) t f handler ctx =
+        case lookupVariable v ctx of
+          Just (Literal s) -> whenDo $ not (T.null  s)
+          Just (List l)    -> whenDo $ not (V.null  l)
+          Just (Object o)  -> whenDo $ not (HM.null o)
+          Nothing          -> whenDo =<< not . T.null <$> handler (LookupError v)
+      where
+        whenDo b = (if b then t else f) handler ctx
 
--- pushIncludes' inc r = go r
---   where go r' = pushIncludes inc r'
+    loop v (Identifier i) b handler ctx =
+        case lookupVariable v ctx of
+          Just (List l) -> mconcat . V.toList $ V.map (\val -> b handler $ HM.insert i val ctx) l
+          _             -> Renderer <$> handler (LookupError v)
+
+    include b = b

@@ -13,7 +13,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Text.Karver.Parse
-( templateParser
+( templateParserExt
+, templateParser
 , literalParser
 , variableParser
 , variableParser'
@@ -24,36 +25,37 @@ module Text.Karver.Parse
 
 import Text.Karver.Types
 
+import Control.Applicative ((<$>), (<|>), (*>), (<*))
 import Data.Attoparsec.Text
-import Data.Text (Text, empty, pack)
-import Control.Applicative ((<|>), (<$>), (*>), (<*))
+import Data.Function (fix)
+import Data.Monoid (mconcat, mempty)
+import Data.Text (Text)
+
+import qualified Data.Text as T
+
+templateParser :: JinjaSYM repr => (FilePath -> Maybe Text) -> Parser repr
+templateParser loader = fix (templateParserExt loader)
 
 -- | Top level 'Parser' that will translate 'Text' into ['Token']
-templateParser :: Parser [Token]
-templateParser = many1 $ choice [ variableParser
-                                , conditionParser
-                                , loopParser
-                                , literalParser
-                                , includeParser
-                                ]
+templateParserExt :: JinjaSYM repr => (FilePath -> Maybe Text) -> Parser repr -> Parser repr
+templateParserExt loader self = fmap mconcat . many1 . choice $
+  [ variableParser
+  , conditionParser self
+  , loopParser self
+  , literalParser
+  , includeParser self loader
+  ]
 
 
 -- | Takes everything until it reaches a @{@, resulting in the 'LiteralTok'
-literalParser :: Parser Token
-literalParser = do
-  html <- takeWhile1 (/= '{')
-  return $ LiteralTok html
+literalParser :: JinjaSYM repr => Parser repr
+literalParser = literal <$> takeWhile1 (/= '{')
 
 -- General function for making parsers that will be surrounded by a curtain
 -- delimiter — which has both a beginning and end.
 delimiterParser :: Text -> Text -> Parser a -> Parser a
-delimiterParser begin end parseFunc = do
-  string begin
-  skipSpace
-  val <- parseFunc
-  skipSpace
-  string end
-  return val
+delimiterParser begin end parser =
+  string begin *> skipSpace *> parser <* skipSpace <* string end
 
 identityDelimiter, expressionDelimiter :: Parser a -> Parser a
 
@@ -62,26 +64,26 @@ expressionDelimiter = delimiterParser "{%" "%}"
 
 -- General parser for the several variable types. It is basically used to
 -- not repeat parsers with and without a delimiter.
-variableParser_ :: (Parser Token -> Parser Token) -> Parser Token
+variableParser_ :: (Parser Variable -> Parser Variable) -> Parser Variable
 variableParser_ fn = fn $ do
-  ident <- takeTill (inClass " .[}")
+  ident <- takeTill (inClass " .[}%")
   peek <- peekChar
   case peek of
     (Just '[') -> do
       char '['
       idx <- decimal
       char ']'
-      return $ ListTok ident idx
+      return $ ListIndex ident idx
     (Just '.') -> do
       char '.'
-      key <- takeTill (inClass " }")
-      return $ ObjectTok ident key
-    (Just ' ') -> return $ IdentityTok ident
-    (Just '}') -> return $ IdentityTok ident
-    Nothing    -> return $ IdentityTok ident
+      key <- takeTill (inClass " %}")
+      return $ ObjectKey ident key
+    (Just ' ') -> return $ Variable ident
+    (Just '}') -> return $ Variable ident
+    (Just '%') -> return $ Variable ident
+    Nothing    -> return $ Variable ident
     _          -> fail "variableParser_: failed with no token to apply."
 
-variableParser, variableParser' :: Parser Token
 
 -- | 'Parser' for all the variable types. Returning on of the following
 -- 'Token's:
@@ -91,7 +93,8 @@ variableParser, variableParser' :: Parser Token
 -- * 'ListTok'
 --
 -- * 'ObjectTok'
-variableParser  = variableParser_ identityDelimiter
+variableParser :: JinjaSYM repl => Parser repl
+variableParser  = variable <$> variableParser_ identityDelimiter
 
 -- | 'Parser' for all the variable types. Returning on of the following
 -- 'Token's:
@@ -103,6 +106,7 @@ variableParser  = variableParser_ identityDelimiter
 -- * 'ObjectTok'
 --
 -- This is without the delimiter
+variableParser' :: Parser Variable
 variableParser' = variableParser_ id
 
 -- Parser for skipping over horizontal space and end on a newline
@@ -112,46 +116,44 @@ skipSpaceTillEOL = option () $ skipWhile isHorizontalSpace >> endOfLine
 {-# INLINE skipSpaceTillEOL #-}
 
 -- | 'Parser' for if statements, that will result in the 'ConditionTok'
-conditionParser :: Parser Token
-conditionParser = do
-  logic <- expressionDelimiter $ do
-    string "if"
-    skipSpace
-    condition <- takeTill (inClass " %")
-    return condition
-  let anyTill   = manyTill anyChar
-      ifparse   = skipSpaceTillEOL *> anyTill (expressionDelimiter
-                                             $ string "endif"
-                                           <|> string "else")
-      elseparse = skipSpaceTillEOL *> anyTill (expressionDelimiter
-                                             $ string "endif")
-  ifbody <- pack <$> ifparse
-  elsebody <- option empty (pack <$> elseparse)
+conditionParser :: JinjaSYM repr => Parser repr -> Parser repr
+conditionParser self = do
+  logic <- expressionDelimiter $ "if" *> skipSpace *> variableParser'
+  ifbody <- ifparse
+  elsebody <- elseparse
   skipSpaceTillEOL
-  return $ ConditionTok logic ifbody elsebody
+  return $ condition (VariableNotNull logic) ifbody elsebody
+
+  where
+    ifparse = skipSpaceTillEOL *> self <* expressionDelimiter ("endif" <|> "else")
+    elseparse = option mempty $ skipSpaceTillEOL *> self <* expressionDelimiter "endif"
 
 -- | 'Parser' for for loops, that will result in the 'LoopTok'
-loopParser :: Parser Token
-loopParser = do
+loopParser :: JinjaSYM repr => Parser repr -> Parser repr
+loopParser self = do
   (arr, var) <- expressionDelimiter $ do
-    string "for"
+    "for"
     skipSpace
-    varName <- takeTill (== ' ')
+    varName <- Identifier <$> takeTill (== ' ')
     skipSpace
-    string "in"
+    "in"
     skipSpace
-    arrName <- takeTill (inClass " %")
+    arrName <- variableParser'
     return (arrName, varName)
+  loopbody <- skipSpaceTillEOL *> self <* expressionDelimiter "endfor"
   skipSpaceTillEOL
-  loopbody <- manyTill anyChar (expressionDelimiter $ string "endfor")
-  skipSpaceTillEOL
-  return $ LoopTok arr var $ pack loopbody
+  return $ loop arr var loopbody
 
 -- | 'Parser' for includes, that will result in 'IncludeTok'
-includeParser :: Parser Token
-includeParser = expressionDelimiter $ do
-  let quote c = char c *> takeTill (== c) <* char c
-  string "include"
+includeParser :: JinjaSYM repr => Parser repr => (FilePath -> Maybe Text) -> Parser repr
+includeParser self loader = expressionDelimiter $ do
+  let quoted c = char c *> takeTill (== c) <* char c
+  "include"
   skipSpace
-  filepath <- quote '"' <|> quote '\''
-  return $ IncludeTok filepath
+  filepath <- T.unpack <$> (quoted '"' <|> quoted '\'')
+  case loader filepath of
+    Just tmpl -> case parseOnly self (T.init tmpl) of
+                   Left err -> fail err
+                   Right t -> return t
+    Nothing   -> fail $ "Cannot load included file " ++ filepath
+                 -- XXX use error handler

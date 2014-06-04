@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 -- |
 -- Module:      Data.Karver.Types
 -- Copyright:   Jeremy Hull 2013
@@ -12,61 +13,80 @@
 module Text.Karver.Types
 ( Value(..)
 , Token(..)
-, BasicSYM(..)
-, IncludeSYM(..)
+, KarverError(..)
+, JinjaSYM(..)
 , Variable(..)
 , Key(..)
 , Condition(..)
-, ListVariable(..)
 , Identifier(..)
 , duplicate
+, lookupVariable
 ) where
 
--- import Control.Applicative ((<$>))
--- import qualified Data.Aeson as A
-import Data.Monoid (Monoid)
-import Data.Text (Text)
+import Control.Applicative ((<$>))
 import Data.HashMap.Strict (HashMap)
-import Data.Vector (Vector)
+import Data.Monoid (Monoid, mappend, mempty)
+import Data.String (IsString, fromString)
+import Data.Text (Text, pack)
+import Data.Typeable (Typeable)
+import Data.Vector (Vector, (!?))
 
-newtype Variable = Variable Text
+import qualified Data.Aeson as A
+import qualified Data.HashMap.Strict as HM
+
+data KarverError = InvalidTemplate Text String
+                 | NoSuchInclude Text
+                 | LookupError Variable
+                 | ManyErrors [KarverError]
+  deriving (Show, Read, Eq, Ord, Typeable)
+
+instance Monoid (KarverError) where
+  mappend e e' = ManyErrors [e, e']
+  mempty = ManyErrors []
+
+data Variable = Variable Text
+              | ObjectKey Text Text
+              | ListIndex Text Int
   deriving (Eq, Ord, Read, Show)
+
+lookupVariable :: Variable -> HashMap Text Value -> Maybe Value
+lookupVariable (Variable v) ctx = HM.lookup v ctx
+lookupVariable (ObjectKey v k) ctx =
+    case HM.lookup v ctx of
+      Just (Object o) -> HM.lookup k o
+      _               -> Nothing
+lookupVariable (ListIndex v i) ctx =
+    case HM.lookup v ctx of
+      Just (List l) -> l !? i
+      _             -> Nothing
+
 
 newtype Key = Key Text
   deriving (Eq, Ord, Read, Show)
 
-newtype Condition = Condition Text -- ^ XXX: what should it be?
-  deriving (Eq, Ord, Read, Show)
-
-newtype ListVariable = ListVariable Text
+-- | XXX should have other conditions
+data Condition = VariableNotNull Variable -- ^ {% if name %}
+               -- | VariableDefined Variable -- ^ {% if name is defined %}
   deriving (Eq, Ord, Read, Show)
 
 newtype Identifier = Identifier Text
   deriving (Eq, Ord, Read, Show)
 
-class Monoid repr => BasicSYM repr where
+class Monoid repr => JinjaSYM repr where
     literal :: Text -> repr
-    identity :: Variable -> repr
-    object :: Variable -> Key -> repr
-    list :: Variable -> Int -> repr
+    variable :: Variable -> repr
     condition :: Condition -> repr -> repr -> repr
-    loop :: ListVariable -> Identifier -> repr -> repr
+    loop :: Variable -> Identifier -> repr -> repr
+    include :: repr -> repr
 
-class BasicSYM repr => IncludeSYM repr where
-    include :: FilePath -> repr
-
-instance (BasicSYM repr, BasicSYM repr') => BasicSYM (repr, repr') where
+instance (JinjaSYM repr, JinjaSYM repr') => JinjaSYM (repr, repr') where
     literal x = (literal x, literal x)
-    identity var = (identity var, identity var)
-    object var key = (object var key, object var key)
-    list var ix = (list var ix, list var ix)
+    variable var = (variable var, variable var)
     condition l (ifBody, ifBody') (elseBody, elseBody') = (condition l ifBody elseBody, condition l ifBody' elseBody')
     loop l ident (body, body') = (loop l ident body, loop l ident body')
+    include (body, body') = (include body, include body')
 
-instance (IncludeSYM repr, IncludeSYM repr') => IncludeSYM (repr, repr') where
-    include file = (include file, include file)
-
-duplicate :: (BasicSYM repr, BasicSYM repr') => (repr, repr') -> (repr, repr')
+duplicate :: (JinjaSYM repr, JinjaSYM repr') => (repr, repr') -> (repr, repr')
 duplicate = id
 
 -- | When dealing with the syntax of karver, we first translate the given
@@ -110,7 +130,7 @@ data Token = LiteralTok   Text
 -- one type.
 data Value = Literal Text
            -- ^ The base value for the storing of variable.
-           | Object (HashMap Text Text)
+           | Object (HashMap Text Value)
            -- ^ An alias for 'HashMap', that will only hold 'Text' with
            --   'Text' as a key as well.
            | List   (Vector Value)
@@ -119,8 +139,11 @@ data Value = Literal Text
            --   'List's.
            deriving (Show, Eq)
 
--- instance A.FromJSON Value where
---   parseJSON o@(A.Object _) = Object <$> A.parseJSON o
---   parseJSON a@(A.Array _)  = List <$> A.parseJSON a
---   parseJSON v              = Literal <$> A.parseJSON v
---   {-# INLINE parseJSON #-}
+instance A.FromJSON Value where
+  parseJSON o@(A.Object _) = Object <$> A.parseJSON o
+  parseJSON a@(A.Array _)  = List <$> A.parseJSON a
+  parseJSON v              = Literal <$> A.parseJSON v
+  {-# INLINE parseJSON #-}
+
+instance IsString Value where
+  fromString = Literal . pack

@@ -4,7 +4,6 @@ module Text.Karver.PrettyPrinter
   , printAST
   ) where
 
--- import Control.Applicative ((<$>), (<*>))
 import Data.Monoid (Monoid, mempty, mappend, (<>))
 import Data.Text (Text)
 import Text.Karver.Types
@@ -25,14 +24,10 @@ instance Monoid PrettyPrinter where
 pprint :: Show a => Text -> a -> PrettyPrinter
 pprint label t = PrettyPrinter $ label <> " " <> T.pack (show t)
 
-instance BasicSYM PrettyPrinter where
+instance JinjaSYM PrettyPrinter where
     literal = pprint "literal"
-    identity = pprint "identity"
-    object = curry (pprint "object")
-    list = curry (pprint "list")
+    variable = pprint "variable"
     condition c t f = pprint "condition" (c, t, f)
     loop l i b = pprint "loop" (l, i, b)
-
-instance IncludeSYM PrettyPrinter where
     include = pprint "include"
 

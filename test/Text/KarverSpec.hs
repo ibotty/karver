@@ -13,6 +13,7 @@ import Test.Hspec
 renderer :: Text -> Text
 renderer t = flip renderTemplate' t $
              unsafePerformIO $ TI.readFile "test/json/test-data.json"
+{-# NOINLINE renderer #-}
 
 spec :: Spec
 spec = do
