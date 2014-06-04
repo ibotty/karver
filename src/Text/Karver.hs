@@ -15,6 +15,8 @@
 module Text.Karver
 ( renderTemplate
 , renderTemplate'
+, unsafeLazyTemplate
+, loadTemplates
 , module Text.Karver.Types
 ) where
 
@@ -22,7 +24,7 @@ import Text.Karver.Types
 import Text.Karver.Parse
 
 import Control.Applicative ((<$>))
-import Control.Monad.Trans.Except (ExceptT(ExceptT), runExceptT, throwE)
+import Control.Monad (filterM)
 import Data.Aeson (decode')
 import Data.Attoparsec.Text
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -34,6 +36,8 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TI
 import Data.Typeable (Typeable)
 import qualified Data.Vector as V
+import System.Directory
+import System.IO.Unsafe (unsafePerformIO)
 
 data KarverError = InvalidTemplate Text String
                  | NoSuchInclude Text
@@ -46,54 +50,49 @@ instance Monoid (KarverError) where
   mempty = ManyErrors []
 
 -- | Renders a template
-renderTemplate :: (Functor m, Monad m)
-               => (Text -> m (Maybe Text))   -- ^ load templates that are included
+renderTemplate :: (Text -> Maybe Text)   -- ^ load templates that are included
                -> (KarverError -> Either KarverError Text)
                -> HashMap Text Value -- ^ Data map for variables inside
                                      --   a given template
                -> Text               -- ^ Template
-               -> m (Either KarverError Text)
-renderTemplate includer errHandler varTable = runExceptT . encode
+               -> Either KarverError Text
+renderTemplate includer errHandler varTable = encode
   where -- commented type sigs to resolv ambigious types
-        errHandler' = ExceptT . return . errHandler
-
-        -- encode :: (Functor m, Monad m) => Text -> ExceptT KarverError m Text
+        -- encode :: Text -> Either KarverError Text
         encode tlp
           | T.null tlp = return T.empty
           | otherwise  =
                   case parseOnly templateParser tlp of
                     Right tokens -> merge tokens
-                    Left err     -> errHandler' $ InvalidTemplate tlp err
+                    Left err     -> errHandler $ InvalidTemplate tlp err
 
-        -- merge :: (Functor m, Monad m) => [Token] -> ExceptT KarverError m Text
+        -- merge :: [Token] -> Either KarverError Text
         merge tokens = T.concat <$> mapM (decodeToken varTable) tokens
 
-        -- decodeToken :: (Functor m, Monad m) => HashMap Text Value -> Token -> ExceptT KarverError m Text
+        -- decodeToken :: HashMap Text Value -> Token -> Either KarverError Text
         decodeToken _ (LiteralTok x)       = return x
         decodeToken vTable (IdentityTok x) =
           case H.lookup x vTable of
             (Just (Literal s)) -> return s
-            _                  -> errHandler' $ LookupError x
+            _                  -> errHandler $ LookupError x
         decodeToken vTable (ObjectTok i k) =
           case H.lookup i vTable of
             (Just (Object m)) -> case H.lookup k m of
                                    (Just x) -> return x
-                                   Nothing  -> errHandler' $ LookupError i
-            _                 -> errHandler' $ LookupError k
+                                   Nothing  -> errHandler $ LookupError i
+            _                 -> errHandler $ LookupError k
         decodeToken vTable (ListTok a i) =
           case H.lookup a vTable of
             (Just (List l)) -> case l V.! i of
                                  (Literal t) -> return t
-                                 _           -> errHandler' $ LookupError a
-            _               -> errHandler' $ LookupError a
+                                 _           -> errHandler $ LookupError a
+            _               -> errHandler $ LookupError a
         decodeToken _ (ConditionTok c t f) =
           hasVariable c >>= \b -> encode $ if b then t else f
           where hasVariable txt =
                   case parseOnly variableParser' txt of
                     (Right res) -> hasVariable' <$> decodeToken varTable res
-                    (Left err)  -> case errHandler (InvalidTemplate txt err) of
-                                     Left err' -> throwE err'
-                                     Right res -> return . hasVariable' $ res
+                    (Left err)  -> hasVariable' <$> errHandler (InvalidTemplate txt err)
                 hasVariable' = not . T.null
         decodeToken vTable (LoopTok a v b) =
           case H.lookup a vTable of
@@ -106,14 +105,31 @@ renderTemplate includer errHandler varTable = runExceptT . encode
               if null toks
                    then return T.empty
                    else T.concat . V.toList <$> V.mapM (fmap T.concat . mapVars) l
-            _               -> errHandler' $ LookupError a
+            _               -> errHandler $ LookupError a
         decodeToken _ (IncludeTok f) =
-          ExceptT (Right <$> includer f) >>= \case
-                            Nothing -> errHandler' $ NoSuchInclude f
-                            Just tmpl -> encode $ T.init tmpl
+          (Right $ includer f) >>= \case
+                                      Nothing -> errHandler $ NoSuchInclude f
+                                      Just tmpl -> encode $ T.init tmpl
 
-loadTemplateFromDisc :: Text -> IO (Maybe Text)
-loadTemplateFromDisc = fmap return . TI.readFile . T.unpack
+
+unsafeLazyTemplate :: Text -> Maybe Text
+unsafeLazyTemplate = unsafePerformIO . fmap return . TI.readFile . T.unpack
+{-# NOINLINE unsafeLazyTemplate #-}
+
+loadTemplates :: IO (Text -> Maybe Text)
+loadTemplates = flip H.lookup <$> (go =<< getCurrentDirectory)
+  where
+    go :: FilePath -> IO (HashMap Text Text)
+    go f = do
+        allFiles <- filterM isReadable =<< getDirectoryContents f
+        files <- filterM doesFileExist allFiles
+        filesContents <- zip (map T.pack files) <$> mapM TI.readFile files
+        subdirs  <- filterM doesDirectoryExist allFiles
+        let map' = H.fromList filesContents
+        H.unions . (map' :) <$> mapM go subdirs
+
+    isReadable :: FilePath -> IO Bool
+    isReadable = fmap readable . getPermissions
 
 continueHandler :: KarverError -> Either KarverError Text
 continueHandler (InvalidTemplate tmpl _) = Right tmpl
@@ -126,10 +142,10 @@ continueHandler (ManyErrors _) = Right T.empty
 renderTemplate' :: Text -- ^ JSON data, for variables inside a given
                         --   template
                 -> Text -- ^ Template
-                -> IO Text
+                -> Text
 renderTemplate' json tpl =
   case decode' . L.pack $ T.unpack json of
-    (Just hash) -> renderTemplate loadTemplateFromDisc continueHandler hash tpl >>= \case
+    (Just hash) -> case renderTemplate unsafeLazyTemplate continueHandler hash tpl of
                      Left err -> error $ "renderTemplate': something went wrong: " ++ show err
-                     Right a -> return a
-    Nothing     -> return T.empty
+                     Right a -> a
+    Nothing     -> error "renderTemplate': could not decode JSON."
