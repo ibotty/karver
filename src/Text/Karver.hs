@@ -33,6 +33,7 @@ import Data.Attoparsec.Text (parseOnly)
 import Data.HashMap.Strict (HashMap)
 import Data.Text (Text)
 import System.Directory (getCurrentDirectory, getDirectoryContents, getPermissions, doesDirectoryExist, doesFileExist, readable)
+import System.FilePath ((</>), normalise)
 import System.IO.Unsafe (unsafePerformIO)
 
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -59,18 +60,19 @@ renderTemplate loader handler ctx tmpl =
       Left err -> TL.fromStrict <$> handler (InvalidTemplate "(inline)" err)
 
 
-unsafeLazyTemplate :: FilePath -> Maybe Text
-unsafeLazyTemplate f = unsafePerformIO $
-    doesFileExist f >>= \case
+unsafeLazyTemplate :: FilePath -> FilePath -> Maybe Text
+unsafeLazyTemplate basePath f = unsafePerformIO $
+    doesFileExist file >>= \case
       False -> return Nothing
-      True  -> try' $ TI.readFile f
+      True  -> try' $ TI.readFile file
   where
+    file = normalise $ basePath </> f
     try' :: IO Text -> IO (Maybe Text)
     try' = fmap (either (\(_ :: SomeException) -> Nothing) Just) . try
 {-# NOINLINE unsafeLazyTemplate #-}
 
-loadTemplates :: IO (FilePath -> Maybe Text)
-loadTemplates = flip H.lookup <$> (go =<< getCurrentDirectory)
+loadTemplates :: FilePath -> IO (FilePath -> Maybe Text)
+loadTemplates = fmap (flip H.lookup) . go
   where
     go :: FilePath -> IO (HashMap FilePath Text)
     go f = do
@@ -98,7 +100,9 @@ renderTemplate' :: Text -- ^ JSON data, for variables inside a given
                 -> TL.Text
 renderTemplate' json tpl =
   case decode' . L.pack $ T.unpack json of
-    (Just hash) -> case renderTemplate unsafeLazyTemplate continueHandler hash tpl of
+    (Just hash) -> case renderTemplate (unsafeLazyTemplate (unsafePerformIO getCurrentDirectory)) continueHandler hash tpl of
                      Left err -> error $ "renderTemplate': something went wrong: " ++ show err
                      Right a -> a
     Nothing     -> error "renderTemplate': could not decode JSON."
+
+
