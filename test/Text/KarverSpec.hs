@@ -7,12 +7,13 @@ import Text.Karver
 import Prelude hiding (unlines, concat)
 import Data.Text (Text, append, unlines, concat)
 import qualified Data.Text.IO as TI
+import qualified Data.Text.Lazy as TL
 import System.IO.Unsafe (unsafePerformIO)
 import Test.Hspec
 
 renderer :: Text -> Text
-renderer t = flip renderTemplate' t $
-             unsafePerformIO $ TI.readFile "test/json/test-data.json"
+renderer = TL.toStrict . renderTemplate' ctx
+  where ctx = unsafePerformIO $ TI.readFile "test/json/test-data.json"
 {-# NOINLINE renderer #-}
 
 spec :: Spec

@@ -1,4 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- |
 -- Module:      Data.Karver
 -- Copyright:   Jeremy Hull 2013
@@ -24,17 +26,21 @@ import Text.Karver.Parse
 import Text.Karver.Types
 
 import Control.Applicative ((<$>))
+import Control.Exception (SomeException, try)
 import Control.Monad (filterM)
 import Data.Aeson (decode')
-import Data.Attoparsec.Text
-import qualified Data.ByteString.Lazy.Char8 as L
+import Data.Attoparsec.Text (parseOnly)
 import Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as H
 import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Data.Text.IO as TI
-import System.Directory
+import System.Directory (getCurrentDirectory, getDirectoryContents, getPermissions, doesDirectoryExist, doesFileExist, readable)
 import System.IO.Unsafe (unsafePerformIO)
+
+import qualified Data.ByteString.Lazy.Char8 as L
+import qualified Data.HashMap.Strict as H
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Builder as TB
+import qualified Data.Text.IO as TI
 
 -- | Renders a template
 renderTemplate :: (FilePath -> Maybe Text)
@@ -46,15 +52,21 @@ renderTemplate :: (FilePath -> Maybe Text)
                --   a given template
                -> Text
                -- ^ Template
-               -> Either KarverError Text
+               -> Either KarverError TL.Text
 renderTemplate loader handler ctx tmpl =
     case parseOnly (templateParser loader) tmpl of
-      Right repl -> rawRenderer <$> renderParsedTemplate handler ctx repl
-      Left err -> handler $ InvalidTemplate "(inline)" err
+      Right repl -> TB.toLazyText . rawRenderer <$> renderParsedTemplate handler ctx repl
+      Left err -> TL.fromStrict <$> handler (InvalidTemplate "(inline)" err)
 
 
 unsafeLazyTemplate :: FilePath -> Maybe Text
-unsafeLazyTemplate = unsafePerformIO . fmap return . TI.readFile
+unsafeLazyTemplate f = unsafePerformIO $
+    doesFileExist f >>= \case
+      False -> return Nothing
+      True  -> try' $ TI.readFile f
+  where
+    try' :: IO Text -> IO (Maybe Text)
+    try' = fmap (either (\(_ :: SomeException) -> Nothing) Just) . try
 {-# NOINLINE unsafeLazyTemplate #-}
 
 loadTemplates :: IO (FilePath -> Maybe Text)
@@ -83,7 +95,7 @@ continueHandler (ManyErrors _) = Right T.empty
 renderTemplate' :: Text -- ^ JSON data, for variables inside a given
                         --   template
                 -> Text -- ^ Template
-                -> Text
+                -> TL.Text
 renderTemplate' json tpl =
   case decode' . L.pack $ T.unpack json of
     (Just hash) -> case renderTemplate unsafeLazyTemplate continueHandler hash tpl of
