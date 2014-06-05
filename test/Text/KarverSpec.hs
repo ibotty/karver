@@ -65,6 +65,13 @@ spec = do
 
       value `shouldBe` expected
 
+    it "object identity with brackets" $ do
+      let objText  = "Templating with {{ template['name'] }} is easy."
+          value    = renderer objText
+          expected = "Templating with karver is easy."
+
+      value `shouldBe` expected
+
     it "object identity" $ do
       let objText  = "Templating with {{ template.name }} is easy."
           value    = renderer objText
@@ -122,6 +129,16 @@ spec = do
                              ]
           value     = renderer falseText
           expected  = ""
+
+      value `shouldBe` expected
+
+    it "check if object element exists with brackets" $ do
+      let elemText = concat [ "{% if template['name'] %}"
+                            , "  {{ template['name'] }} is the template."
+                            , "{% endif %}"
+                            ]
+          value    = renderer elemText
+          expected = "  karver is the template."
 
       value `shouldBe` expected
 

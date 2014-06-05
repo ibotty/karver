@@ -69,21 +69,19 @@ variableParser_ fn = fn $ do
   ident <- takeTill (inClass " .[}%")
   peek <- peekChar
   case peek of
-    (Just '[') -> do
-      char '['
-      idx <- decimal
-      char ']'
-      return $ ListIndex ident idx
-    (Just '.') -> do
-      char '.'
-      key <- takeTill (inClass " %}")
-      return $ ObjectKey ident key
+    (Just '[') ->
+           ListIndex ident <$> inBrackets decimal
+       <|> ObjectKey ident <$> inBrackets (quoted identifierName)
+    (Just '.') -> ObjectKey ident <$> (char '.' *> identifierName)
     (Just ' ') -> return $ Variable ident
     (Just '}') -> return $ Variable ident
     (Just '%') -> return $ Variable ident
     Nothing    -> return $ Variable ident
     _          -> fail "variableParser_: failed with no token to apply."
-
+  where
+    inBrackets = delimiterParser "[" "]"
+    quoted p = char '"' *> p <* char '"' <|> char '\'' *> p <* char '\''
+    identifierName = takeTill (inClass " '\"%}")
 
 -- | 'Parser' for all the variable types. Returning on of the following
 -- 'Token's:
