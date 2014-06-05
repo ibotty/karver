@@ -145,7 +145,7 @@ loopParser self = do
   return $ loop arr var loopbody
 
 -- | 'Parser' for includes, that will result in 'IncludeTok'
-includeParser :: JinjaSYM repr => Parser repr => (FilePath -> Maybe Text) -> Parser repr
+includeParser :: JinjaSYM repr => Parser repr -> (FilePath -> Maybe Text) -> Parser repr
 includeParser self loader = expressionDelimiter $ do
   let quoted c = char c *> takeTill (== c) <* char c
   "include"
