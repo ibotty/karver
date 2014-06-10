@@ -3,7 +3,7 @@
 , "ver-control": "git"
 , "template": { "name": "karver" }
 , "libraries": [ "attoparsec", "hspec", "text" ]
-, "titles": [ { "name": "Karver the Template"
+, "titles": [ { "name": "Stencil the Template"
               , "id": "karver_the_template"
               }
             , { "name": "BDD with Hspec"

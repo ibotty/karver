@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
-module Text.Karver.Compiler
+module Text.Stencil.Compiler
   ( Renderer(..)
   , Renderer'
   , renderParsedTemplate
@@ -15,21 +15,21 @@ import Data.HashMap.Strict    (HashMap)
 import Data.Monoid            (Monoid, mconcat, mempty, (<>))
 import Data.Text              (Text)
 import Data.Text.Lazy.Builder (Builder)
-import Text.Karver.Types
+import Text.Stencil.Types
 
 import qualified Data.HashMap.Strict    as HM
 import qualified Data.Text              as T
 import qualified Data.Text.Lazy.Builder as TB
 import qualified Data.Vector            as V
 
-type Renderer' = (KarverError -> Either KarverError Text)
+type Renderer' = (StencilError -> Either StencilError Text)
                -> HashMap Text Value
-               -> Either KarverError Renderer
+               -> Either StencilError Renderer
 
-renderParsedTemplate :: (KarverError -> Either KarverError Text)
+renderParsedTemplate :: (StencilError -> Either StencilError Text)
                      -> HashMap Text Value
                      -> Renderer'
-                     -> Either KarverError Renderer
+                     -> Either StencilError Renderer
 renderParsedTemplate handler ctx tmpl = tmpl handler ctx
 
 newtype Renderer = Renderer {rawRenderer :: Builder}
@@ -64,11 +64,11 @@ instance JinjaSYM Renderer' where
             Just (List l) -> V.foldM' step mempty l
             _             -> handleError
       where
-        step :: Renderer -> Value -> Either KarverError Renderer
+        step :: Renderer -> Value -> Either StencilError Renderer
         step text val =
             (text <>) <$> foldM innerStep mempty body
           where
-            innerStep :: Renderer -> Renderer' -> Either KarverError Renderer
+            innerStep :: Renderer -> Renderer' -> Either StencilError Renderer
             innerStep t r = (t <>) <$> r handler newCtx
             newCtx = HM.insert i val ctx
 

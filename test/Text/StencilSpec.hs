@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Text.KarverSpec (spec) where
+module Text.StencilSpec (spec) where
 
-import Text.Karver
+import Text.Stencil
 
 import Prelude hiding (unlines, concat)
 import Control.Applicative ((<$>))
@@ -222,7 +222,7 @@ spec = do
                             ]
           value    = renderer withObj
           expected = concat [ "<a id=\"karver_the_template\">"
-                            , "Karver the Template</a>"
+                            , "Stencil the Template</a>"
                             , "<a id=\"bdd_with_hspec\">BDD with Hspec</a>"
                             , "<a id=\"attoparsec_the_parser\">"
                             , "Attoparsec the Parser</a>"
@@ -239,7 +239,7 @@ spec = do
                              ]
           value    = renderer withObj
           expected = unlines [ concat [ "<a id=\"karver_the_template\">"
-                                      , "Karver the Template</a>"
+                                      , "Stencil the Template</a>"
                                       ]
                              , "<a id=\"bdd_with_hspec\">BDD with Hspec</a>"
                              , concat [ "<a id=\"attoparsec_the_parser\">"

@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 -- |
--- Module:      Data.Karver.Types
+-- Module:      Data.Stencil.Types
 -- Copyright:   Jeremy Hull 2013
 -- License:     BSD3
 --
@@ -8,12 +8,12 @@
 -- Stability:   experimental
 -- Portability: unknown
 --
--- Base types used throughout Karver.
+-- Base types used throughout Stencil.
 
-module Text.Karver.Types
+module Text.Stencil.Types
 ( Value(..)
 , Token(..)
-, KarverError(..)
+, StencilError(..)
 , JinjaSYM(..)
 , JinjaIncludeSYM(..)
 , Variable(..)
@@ -35,14 +35,14 @@ import Data.Vector         (Vector, (!?))
 import qualified Data.Aeson          as A
 import qualified Data.HashMap.Strict as HM
 
-data KarverError = InvalidTemplate Text String
+data StencilError = InvalidTemplate Text String
                  | InvalidTemplateFile FilePath String
                  | NoSuchInclude FilePath
                  | LookupError Variable
-                 | ManyErrors [KarverError]
+                 | ManyErrors [StencilError]
   deriving (Show, Read, Eq, Ord, Typeable)
 
-instance Monoid KarverError where
+instance Monoid StencilError where
   mappend e e' = ManyErrors [e, e']
   mempty = ManyErrors []
 

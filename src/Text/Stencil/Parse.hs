@@ -1,5 +1,5 @@
 -- |
--- Module:      Data.Karver.Parse
+-- Module:      Data.Stencil.Parse
 -- Copyright:   Jeremy Hull 2013
 -- License:     BSD3
 --
@@ -8,11 +8,11 @@
 -- Portability: unknown
 --
 -- All the 'Parser's are defined here, including the one used by the top
--- level module "Text.Karver".
+-- level module "Text.Stencil".
 
 {-# LANGUAGE OverloadedStrings #-}
 
-module Text.Karver.Parse
+module Text.Stencil.Parse
 ( templateParserExt
 , templateParser
 , literalParser
@@ -23,11 +23,12 @@ module Text.Karver.Parse
 , includeParser
 ) where
 
-import Text.Karver.Types
+import Text.Stencil.Types
 
 import Control.Applicative  ((*>), (<$>), (<*), (<|>))
 import Data.Attoparsec.Text
 import Data.Function        (fix)
+import Control.Monad (void)
 import Data.Text            (Text)
 
 import qualified Data.Text as T
@@ -132,11 +133,11 @@ conditionParser self = do
 loopParser :: JinjaSYM repr => Parser repr -> Parser repr
 loopParser self = do
   (arr, var) <- expressionDelimiter $ do
-    "for"
+    void "for"
     skipSpace
     varName <- Identifier <$> takeTill (== ' ')
     skipSpace
-    "in"
+    void "in"
     skipSpace
     arrName <- variableParser'
     return (arrName, varName)
@@ -147,7 +148,8 @@ loopParser self = do
 -- | 'Parser' for includes, that will result in 'IncludeTok'
 includeParser :: JinjaIncludeSYM repr => Parser repr
 includeParser = expressionDelimiter $ do
-  let quoted c = char c *> takeTill (== c) <* char c
-  "include"
+  void "include"
   skipSpace
   include . T.unpack <$> (quoted '"' <|> quoted '\'')
+  where
+    quoted c = char c *> takeTill (== c) <* char c

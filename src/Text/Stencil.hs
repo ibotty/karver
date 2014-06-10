@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 -- |
--- Module:      Data.Karver
+-- Module:      Data.Stencil
 -- Copyright:   Jeremy Hull 2013
 -- License:     BSD3
 --
@@ -10,23 +10,23 @@
 -- Stability:   experimental
 -- Portability: unknown
 --
--- The "Text.Karver" interface for translation 'Text' from it's template
+-- The "Text.Stencil" interface for translation 'Text' from it's template
 -- syntax, to a generated value — based on the data that was given.
 
-module Text.Karver
+module Text.Stencil
 ( renderTemplate
 , renderTemplate'
 , renderTemplate''
 , loadTemplatesInDir
 , loadTemplates
 , continueHandler
-, module Text.Karver.Types
+, module Text.Stencil.Types
 ) where
 
-import Text.Karver.Compiler
-import Text.Karver.Parse
-import Text.Karver.ResolveIncludes
-import Text.Karver.Types
+import Text.Stencil.Compiler
+import Text.Stencil.Parse
+import Text.Stencil.ResolveIncludes
+import Text.Stencil.Types
 
 import Control.Applicative  (many, (<$>))
 import Control.Exception    (SomeException, try)
@@ -46,14 +46,14 @@ import qualified Data.Text.Lazy.Builder as TB
 -- | Renders a template
 renderTemplate :: (FilePath -> IO (Maybe Text))
                -- ^ load templates that are included
-               -> (KarverError -> Either KarverError Text)
+               -> (StencilError -> Either StencilError Text)
                -- ^ error handler
                -> HashMap Text Value
                -- ^ Data map for variables inside
                --   a given template
                -> Text
                -- ^ Template
-               -> IO (Either KarverError TL.Text)
+               -> IO (Either StencilError TL.Text)
 renderTemplate loader handler ctx tmpl =
     case parseOnly (many templateParser) tmpl of
       Right r -> do
@@ -78,7 +78,7 @@ loadTemplatesInDir basePath f =
 loadTemplates :: Loader
 loadTemplates file = getCurrentDirectory >>= flip loadTemplatesInDir file
 
-continueHandler :: KarverError -> Either KarverError Text
+continueHandler :: StencilError -> Either StencilError Text
 continueHandler (InvalidTemplate _ _) = Right T.empty
 continueHandler (InvalidTemplateFile _ _) = Right T.empty
 continueHandler (LookupError _) = Right T.empty

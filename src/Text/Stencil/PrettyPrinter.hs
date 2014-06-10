@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Text.Karver.PrettyPrinter
+module Text.Stencil.PrettyPrinter
   ( PrettyPrinter(..)
   , printAST
   ) where
 
 import Data.Monoid       ((<>))
 import Data.Text         (Text)
-import Text.Karver.Types
+import Text.Stencil.Types
 
 import qualified Data.Text as T
 

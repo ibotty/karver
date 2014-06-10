@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Text.Karver.TypesSpec (spec) where
+module Text.Stencil.TypesSpec (spec) where
 
-import Text.Karver.Types
+import Text.Stencil.Types
 
 import Data.Aeson (decode')
 import qualified Data.HashMap.Strict as H
