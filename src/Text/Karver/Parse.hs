@@ -25,26 +25,27 @@ module Text.Karver.Parse
 
 import Text.Karver.Types
 
-import Control.Applicative ((<$>), (<|>), (*>), (<*))
+import Control.Applicative  ((*>), (<$>), (<*), (<|>))
 import Data.Attoparsec.Text
-import Data.Function (fix)
-import Data.Monoid (mconcat, mempty)
-import Data.Text (Text)
+import Data.Function        (fix)
+import Data.Text            (Text)
 
 import qualified Data.Text as T
 
-templateParser :: JinjaSYM repr => (FilePath -> Maybe Text) -> Parser repr
-templateParser loader = fix (templateParserExt loader)
+templateParser :: JinjaIncludeSYM repr => Parser repr
+templateParser = fix includeParserExt
 
 -- | Top level 'Parser' that will translate 'Text' into ['Token']
-templateParserExt :: JinjaSYM repr => (FilePath -> Maybe Text) -> Parser repr -> Parser repr
-templateParserExt loader self = fmap mconcat . many1 . choice $
+templateParserExt :: JinjaSYM repr => Parser repr -> Parser repr
+templateParserExt self = choice
   [ variableParser
   , conditionParser self
   , loopParser self
   , literalParser
-  , includeParser self loader
   ]
+
+includeParserExt :: JinjaIncludeSYM repr => Parser repr -> Parser repr
+includeParserExt self = templateParserExt self <|> includeParser
 
 
 -- | Takes everything until it reaches a @{@, resulting in the 'LiteralTok'
@@ -61,6 +62,7 @@ identityDelimiter, expressionDelimiter :: Parser a -> Parser a
 
 identityDelimiter   = delimiterParser "{{" "}}"
 expressionDelimiter = delimiterParser "{%" "%}"
+
 
 -- General parser for the several variable types. It is basically used to
 -- not repeat parsers with and without a delimiter.
@@ -123,8 +125,8 @@ conditionParser self = do
   return $ condition (VariableNotNull logic) ifbody elsebody
 
   where
-    ifparse = skipSpaceTillEOL *> self <* expressionDelimiter ("endif" <|> "else")
-    elseparse = option mempty $ skipSpaceTillEOL *> self <* expressionDelimiter "endif"
+    ifparse = skipSpaceTillEOL *> many' self <* expressionDelimiter ("endif" <|> "else")
+    elseparse = option [] $ skipSpaceTillEOL *> many' self <* expressionDelimiter "endif"
 
 -- | 'Parser' for for loops, that will result in the 'LoopTok'
 loopParser :: JinjaSYM repr => Parser repr -> Parser repr
@@ -138,20 +140,14 @@ loopParser self = do
     skipSpace
     arrName <- variableParser'
     return (arrName, varName)
-  loopbody <- skipSpaceTillEOL *> self <* expressionDelimiter "endfor"
+  loopbody <- skipSpaceTillEOL *> many' self <* expressionDelimiter "endfor"
   skipSpaceTillEOL
   return $ loop arr var loopbody
 
 -- | 'Parser' for includes, that will result in 'IncludeTok'
-includeParser :: JinjaSYM repr => Parser repr -> (FilePath -> Maybe Text) -> Parser repr
-includeParser self loader = expressionDelimiter $ do
+includeParser :: JinjaIncludeSYM repr => Parser repr
+includeParser = expressionDelimiter $ do
   let quoted c = char c *> takeTill (== c) <* char c
   "include"
   skipSpace
-  filepath <- T.unpack <$> (quoted '"' <|> quoted '\'')
-  case loader filepath of
-    Just tmpl -> case parseOnly self (T.init tmpl) of
-                   Left err -> fail err
-                   Right t -> return t
-    Nothing   -> fail $ "Cannot load included file " ++ filepath
-                 -- XXX use error handler
+  include . T.unpack <$> (quoted '"' <|> quoted '\'')

@@ -2,7 +2,7 @@
 , "language": "haskell"
 , "ver-control": "git"
 , "template": { "name": "karver" }
-, "libraries": [ "attoparsec", "hspec" ]
+, "libraries": [ "attoparsec", "hspec", "text" ]
 , "titles": [ { "name": "Karver the Template"
               , "id": "karver_the_template"
               }

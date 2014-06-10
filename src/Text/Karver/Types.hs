@@ -15,6 +15,7 @@ module Text.Karver.Types
 , Token(..)
 , KarverError(..)
 , JinjaSYM(..)
+, JinjaIncludeSYM(..)
 , Variable(..)
 , Key(..)
 , Condition(..)
@@ -25,22 +26,23 @@ module Text.Karver.Types
 
 import Control.Applicative ((<$>))
 import Data.HashMap.Strict (HashMap)
-import Data.Monoid (Monoid, mappend, mempty)
-import Data.String (IsString, fromString)
-import Data.Text (Text, pack)
-import Data.Typeable (Typeable)
-import Data.Vector (Vector, (!?))
+import Data.Monoid         (Monoid, mappend, mempty)
+import Data.String         (IsString, fromString)
+import Data.Text           (Text, pack)
+import Data.Typeable       (Typeable)
+import Data.Vector         (Vector, (!?))
 
-import qualified Data.Aeson as A
+import qualified Data.Aeson          as A
 import qualified Data.HashMap.Strict as HM
 
 data KarverError = InvalidTemplate Text String
-                 | NoSuchInclude Text
+                 | InvalidTemplateFile FilePath String
+                 | NoSuchInclude FilePath
                  | LookupError Variable
                  | ManyErrors [KarverError]
   deriving (Show, Read, Eq, Ord, Typeable)
 
-instance Monoid (KarverError) where
+instance Monoid KarverError where
   mappend e e' = ManyErrors [e, e']
   mempty = ManyErrors []
 
@@ -72,21 +74,31 @@ data Condition = VariableNotNull Variable -- ^ {% if name %}
 newtype Identifier = Identifier Text
   deriving (Eq, Ord, Read, Show)
 
-class Monoid repr => JinjaSYM repr where
+class JinjaSYM repr where
+    tokens :: [repr] -> repr
     literal :: Text -> repr
     variable :: Variable -> repr
-    condition :: Condition -> repr -> repr -> repr
-    loop :: Variable -> Identifier -> repr -> repr
-    include :: repr -> repr
+    condition :: Condition -> [repr] -> [repr] -> repr
+    loop :: Variable -> Identifier -> [repr] -> repr
+
+class JinjaSYM repr => JinjaIncludeSYM repr where
+    include :: FilePath -> repr
 
 instance (JinjaSYM repr, JinjaSYM repr') => JinjaSYM (repr, repr') where
+    tokens terms = (tokens xs, tokens xs')
+      where (xs, xs') = unzip terms
     literal x = (literal x, literal x)
     variable var = (variable var, variable var)
-    condition l (ifBody, ifBody') (elseBody, elseBody') = (condition l ifBody elseBody, condition l ifBody' elseBody')
-    loop l ident (body, body') = (loop l ident body, loop l ident body')
-    include (body, body') = (include body, include body')
+    condition l t f = (condition l ifB elseB, condition l ifB' elseB')
+      where (ifB, ifB') = unzip t
+            (elseB, elseB') = unzip f
+    loop l ident b = (loop l ident body, loop l ident body')
+      where (body, body') = unzip b
 
-duplicate :: (JinjaSYM repr, JinjaSYM repr') => (repr, repr') -> (repr, repr')
+instance (JinjaIncludeSYM repr, JinjaIncludeSYM repr') => JinjaIncludeSYM (repr, repr') where
+    include path = (include path, include path)
+
+duplicate :: (repr, repr') -> (repr, repr')
 duplicate = id
 
 -- | When dealing with the syntax of karver, we first translate the given

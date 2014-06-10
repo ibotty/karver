@@ -5,15 +5,15 @@ module Text.KarverSpec (spec) where
 import Text.Karver
 
 import Prelude hiding (unlines, concat)
+import Control.Applicative ((<$>))
 import Data.Text (Text, append, unlines, concat)
-import qualified Data.Text.IO as TI
 import qualified Data.Text.Lazy as TL
 import System.IO.Unsafe (unsafePerformIO)
 import Test.Hspec
 
 renderer :: Text -> Text
-renderer = TL.toStrict . renderTemplate' ctx
-  where ctx = unsafePerformIO $ TI.readFile "test/json/test-data.json"
+renderer t = unsafePerformIO $ TL.toStrict <$> renderTemplate' file t
+  where file = "test/json/test-data.json"
 {-# NOINLINE renderer #-}
 
 spec :: Spec
@@ -195,7 +195,7 @@ spec = do
                             , "{% endfor %}."
                             ]
           value    = renderer loopText
-          expected = "Some libraries used: attoparsec hspec ."
+          expected = "Some libraries used: attoparsec hspec text ."
 
       value `shouldBe` expected
 
@@ -209,6 +209,7 @@ spec = do
           expected = unlines [ "Some libraries used:"
                              , "  * attoparsec"
                              , "  * hspec"
+                             , "  * text"
                              ]
 
       value `shouldBe` expected
@@ -276,6 +277,7 @@ spec = do
           expected    = unlines [ "<ul>"
                                 , "  <li>attoparsec</li>"
                                 , "  <li>hspec</li>"
+                                , "  <li>text</li>"
                                 , "</ul>"
                                 ]
 
