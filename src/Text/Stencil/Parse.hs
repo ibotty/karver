@@ -1,9 +1,9 @@
 -- |
 -- Module:      Data.Stencil.Parse
--- Copyright:   Jeremy Hull 2013
+-- Copyright:   Tobias Florek 2014
 -- License:     BSD3
 --
--- Maintainer:  Jeremy Hull <sourdrums@gmail.com>
+-- Maintainer:  Tobias Florek <tob@butter.sh>
 -- Stability:   experimental
 -- Portability: unknown
 --
