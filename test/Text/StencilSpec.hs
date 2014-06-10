@@ -22,7 +22,7 @@ spec = do
     it "identity at the end" $ do
       let endText  = "Template engine named {{ project }}"
           value    = renderer endText
-          expected = "Template engine named karver"
+          expected = "Template engine named stencil"
 
       value `shouldBe` expected
 
@@ -44,7 +44,7 @@ spec = do
       let multiText = append "{{ project }} is written in {{ language }}"
                              ", held in {{ ver-control }}."
           value     = renderer multiText
-          expected  = "karver is written in haskell, held in git."
+          expected  = "stencil is written in haskell, held in git."
 
       value `shouldBe` expected
 
@@ -57,7 +57,7 @@ spec = do
                         ]
           value     = renderer multiText
           expected  = unlines
-                        [ "karver is the name"
+                        [ "stencil is the name"
                         , "making template is my game"
                         , "if need something done faster"
                         , "you need something written in haskell"
@@ -68,42 +68,42 @@ spec = do
     it "object identity with brackets" $ do
       let objText  = "Templating with {{ template['name'] }} is easy."
           value    = renderer objText
-          expected = "Templating with karver is easy."
+          expected = "Templating with stencil is easy."
 
       value `shouldBe` expected
 
     it "object identity" $ do
       let objText  = "Templating with {{ template.name }} is easy."
           value    = renderer objText
-          expected = "Templating with karver is easy."
+          expected = "Templating with stencil is easy."
 
       value `shouldBe` expected
 
     it "mix of object a identity #1" $ do
       let mixText  = "My {{ project }} is your {{ template.name }}."
           value    = renderer mixText
-          expected = "My karver is your karver."
+          expected = "My stencil is your stencil."
 
       value `shouldBe` expected
 
     it "mix of object a identity #2" $ do
       let mixText  = "My {{ template.name }} is your {{ project }}."
           value    = renderer mixText
-          expected = "My karver is your karver."
+          expected = "My stencil is your stencil."
 
       value `shouldBe` expected
 
     it "list identity" $ do
-      let arrText  = "karver uses {{ libraries[0] }} for parsing."
+      let arrText  = "stencil uses {{ libraries[0] }} for parsing."
           value    = renderer arrText
-          expected = "karver uses attoparsec for parsing."
+          expected = "stencil uses attoparsec for parsing."
 
       value `shouldBe` expected
 
     it "mix of list and identity" $ do
       let arrText  = "{{ project }} uses {{ libraries[1] }} for testing."
           value    = renderer arrText
-          expected = "karver uses hspec for testing."
+          expected = "stencil uses hspec for testing."
 
       value `shouldBe` expected
 
@@ -111,20 +111,20 @@ spec = do
       let arrText  = append "{{ template.name }} uses"
                             " {{ libraries[1] }} for testing."
           value    = renderer arrText
-          expected = "karver uses hspec for testing."
+          expected = "stencil uses hspec for testing."
 
       value `shouldBe` expected
 
     it "true evaluated if" $ do
       let trueText = "{% if project %}{{ project }}{% endif %} is true"
           value    = renderer trueText
-          expected = "karver is true"
+          expected = "stencil is true"
 
       value `shouldBe` expected
 
     it "false evaluated if" $ do
       let falseText = concat [ "{% if closed %}"
-                             , "  karver is closed source"
+                             , "  stencil is closed source"
                              , "{% endif %}"
                              ]
           value     = renderer falseText
@@ -138,7 +138,7 @@ spec = do
                             , "{% endif %}"
                             ]
           value    = renderer elemText
-          expected = "  karver is the template."
+          expected = "  stencil is the template."
 
       value `shouldBe` expected
 
@@ -148,7 +148,7 @@ spec = do
                             , "{% endif %}"
                             ]
           value    = renderer elemText
-          expected = "  karver is the template."
+          expected = "  stencil is the template."
 
       value `shouldBe` expected
 
@@ -166,13 +166,13 @@ spec = do
 
     it "false evaluated if else" $ do
       let falseText = concat [ "{% if closed %}"
-                             , "  karver is closed source"
+                             , "  stencil is closed source"
                              , "{% else %}"
-                             , "  karver is open source"
+                             , "  stencil is open source"
                              , "{% endif %}"
                              ]
           value     = renderer falseText
-          expected  = "  karver is open source"
+          expected  = "  stencil is open source"
 
       value `shouldBe` expected
 
@@ -221,7 +221,7 @@ spec = do
                             , "{% endfor %}"
                             ]
           value    = renderer withObj
-          expected = concat [ "<a id=\"karver_the_template\">"
+          expected = concat [ "<a id=\"stencil_the_template\">"
                             , "Stencil the Template</a>"
                             , "<a id=\"bdd_with_hspec\">BDD with Hspec</a>"
                             , "<a id=\"attoparsec_the_parser\">"
@@ -238,7 +238,7 @@ spec = do
                              , "{% endfor %}"
                              ]
           value    = renderer withObj
-          expected = unlines [ concat [ "<a id=\"karver_the_template\">"
+          expected = unlines [ concat [ "<a id=\"stencil_the_template\">"
                                       , "Stencil the Template</a>"
                                       ]
                              , "<a id=\"bdd_with_hspec\">BDD with Hspec</a>"

@@ -1,10 +1,10 @@
-{ "project": "karver"
+{ "project": "stencil"
 , "language": "haskell"
 , "ver-control": "git"
-, "template": { "name": "karver" }
+, "template": { "name": "stencil" }
 , "libraries": [ "attoparsec", "hspec", "text" ]
 , "titles": [ { "name": "Stencil the Template"
-              , "id": "karver_the_template"
+              , "id": "stencil_the_template"
               }
             , { "name": "BDD with Hspec"
               , "id": "bdd_with_hspec"

@@ -1,10 +1,10 @@
-# Karver
+# Stencil
 
-Karver is a template engine written in Haskell, and the syntax is
-heavily inspired by [jinja2][1].
+Stencil is a template engine written in Haskell, and the syntax is
+heavily inspired by [jinja2][1]. It is fork of [karver][8].
 
 The project is in early development, so it isn't as full featured or
-production ready as jinja is. However, karver's main focus is for
+production ready as jinja is. However, stencil's main focus is for
 Haskell programmers, wanting a template engine that is simple and has
 good performance.
 
@@ -22,20 +22,20 @@ A small taste of the syntax being:
 </ul>
 ```
 
-# Interface of Karver
+# Interface of Stencil
 
-The meat of karver is the `renderTemplate` function. With it's type
-signature being, `renderTemplate :: HashMap Text Value -> Text -> Text`,
+The meat of stencil is the `renderTemplate` function. With it's type
+signature being, `renderTemplate :: HashMap Text Value -> Text -> IO Text`,
 it takes a hashmap of variables being used by the template, and the
 template text itself. It of course returns the translated result, and
 since the type is `Text`, it supports Unicode right out of the box.
 
-Programs using karver might look something like:
+Programs using stencil might look something like:
 
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
 
-import Text.Karver
+import Text.Stencil
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as H
 import Data.Text (Text)
@@ -63,7 +63,7 @@ or if JSON is more your flavor:
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
 
-import Text.Karver
+import Text.Stencil
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TI
@@ -84,13 +84,13 @@ main = do
 
 # How to Contribute
 
-Since karver is in early development, there is still work needed to be
+Since stencil is in early development, there is still work needed to be
 done. Whenever there is something that needs work on, it will typically
 be in [issues][2]. If there isn't issues open, try working on a feature
 that is in jinja, or an other template engines, that you want to see in
-karver.
+stencil.
 
-And before you start hacking on karver, here a same guide to go from add
+And before you start hacking on stencil, here a same guide to go from add
 code to the project and getting it into the main repo.
 
 ### Never use the `master` branch while developing a feature.
@@ -131,13 +131,13 @@ Simple as that.
 ## Getting Started
 
 ```bash
-git clone git://github.com/sourrust/karver.git
-cd karver
+git clone git://github.com/sourrust/stencil.git
+cd stencil
 cabal configure --enable-tests
 ```
 
 If the configure set fails you are going to want to install the missing
-packages and try again. Karver is built on the [latest Haskell
+packages and try again. Stencil is built on the [latest Haskell
 Platform][5] and a few other dependencies.
 
 ```bash
@@ -152,10 +152,10 @@ and `cabal test` to run the test suite.
 
 ## Writing Tests
 
-Karver uses [`hspec`][6] for testing. Tests are located in the `test/`
+Stencil uses [`hspec`][6] for testing. Tests are located in the `test/`
 directory and each file, being tested, has it's own corresponding Spec
-file. For example, `Text/Karver/Parser.hs` in `src/`, has a spec file
-`Text/Karver/ParserSpec.hs` inside of `test/`. Follow this rule if you
+file. For example, `Text/Stencil/Parser.hs` in `src/`, has a spec file
+`Text/Stencil/ParserSpec.hs` inside of `test/`. Follow this rule if you
 add a new file that you want to test, because [`Spec.hs`][7] discovers
 the files with the name, so it needs Spec prefixing the file name for
 hspec to add it to the suite.
@@ -174,9 +174,10 @@ You can add more variable if needed, but the **value should be
 expected**, is just my personal preference to how the test should end.
 
 [1]: http://jinja.pocoo.org/
-[2]: https://github.com/sourrust/karver/issues
+[2]: https://github.com/sourrust/stencil/issues
 [3]: http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
 [4]: https://github.com/tpope/vim-fugitive
 [5]: http://www.haskell.org/platform/
 [6]: http://hspec.github.io/
-[7]: https://github.com/sourrust/karver/blob/master/test/Spec.hs
+[7]: https://github.com/ibotty/stencil/blob/master/test/Spec.hs
+[8]: https://github.com/sourrust/karver
