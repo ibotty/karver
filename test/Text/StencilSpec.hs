@@ -5,14 +5,12 @@ module Text.StencilSpec (spec) where
 import Text.Stencil
 
 import Prelude hiding (unlines, concat)
-import Control.Applicative ((<$>))
-import Data.Text (Text, append, unlines, concat)
-import qualified Data.Text.Lazy as TL
+import Data.Text.Lazy (Text, append, unlines, concat)
 import System.IO.Unsafe (unsafePerformIO)
 import Test.Hspec
 
 renderer :: Text -> Text
-renderer t = unsafePerformIO $ TL.toStrict <$> renderTemplate' file t
+renderer t = unsafePerformIO $ renderTemplate' file t
   where file = "test/json/test-data.json"
 {-# NOINLINE renderer #-}
 

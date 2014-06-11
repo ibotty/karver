@@ -31,7 +31,7 @@ import Text.Stencil.Types
 import Control.Applicative  (many, (<$>))
 import Control.Exception    (SomeException, try)
 import Data.Aeson           (decode')
-import Data.Attoparsec.Text (parseOnly)
+import Data.Attoparsec.Text.Lazy (eitherResult, parse)
 import Data.HashMap.Strict  (HashMap)
 import Data.Text            (Text)
 import System.Directory     (doesFileExist, getCurrentDirectory)
@@ -39,23 +39,23 @@ import System.FilePath      (normalise, (</>))
 
 import qualified Data.ByteString.Lazy   as BL
 import qualified Data.Text              as T
-import qualified Data.Text.IO           as TI
+import qualified Data.Text.Lazy.IO      as TLIO
 import qualified Data.Text.Lazy         as TL
 import qualified Data.Text.Lazy.Builder as TB
 
 -- | Renders a template
-renderTemplate :: (FilePath -> IO (Maybe Text))
+renderTemplate :: (FilePath -> IO (Maybe TL.Text))
                -- ^ load templates that are included
                -> (StencilError -> Either StencilError Text)
                -- ^ error handler
                -> HashMap Text Value
                -- ^ Data map for variables inside
                --   a given template
-               -> Text
+               -> TL.Text
                -- ^ Template
                -> IO (Either StencilError TL.Text)
 renderTemplate loader handler ctx tmpl =
-    case parseOnly (many templateParser) tmpl of
+    case eitherResult $ parse (many templateParser) tmpl of
       Right r -> do
           eResolved <- resolveIncludes loader (tokens r)
           return $ case eResolved of
@@ -69,10 +69,9 @@ loadTemplatesInDir :: FilePath -> Loader
 loadTemplatesInDir basePath f =
     doesFileExist file >>= \case
       False -> return Nothing
-      True  -> try' $ TI.readFile file
+      True  -> try' $ TLIO.readFile file
   where
     file = normalise $ basePath </> f
-    try' :: IO Text -> IO (Maybe Text)
     try' = fmap (either (\(_ :: SomeException) -> Nothing) Just) . try
 
 loadTemplates :: Loader
@@ -89,7 +88,7 @@ continueHandler (ManyErrors _) = Right T.empty
 -- a 'HashMap'
 renderTemplate' :: FilePath -- ^ file with JSON data, for variables inside a given
                         --   template
-                -> Text -- ^ Template
+                -> TL.Text -- ^ Template
                 -> IO TL.Text
 renderTemplate' file tpl =
   decode' <$> BL.readFile file >>= \case
@@ -104,7 +103,7 @@ renderTemplate' file tpl =
 -- a 'HashMap'
 renderTemplate'' :: BL.ByteString -- ^ file with JSON data, for variables inside a given
                         --   template
-                -> Text -- ^ Template
+                -> TL.Text -- ^ Template
                 -> IO TL.Text
 renderTemplate'' json tpl =
   case decode' json of

@@ -9,18 +9,15 @@ module Text.Stencil.ResolveIncludes
   )
   where
 
+import Control.Applicative  ((<$>), (<*>))
+import Control.Monad.Trans.Except (ExceptT (ExceptT), runExceptT)
+import Data.Attoparsec.Text.Lazy (Parser, parse, eitherResult)
 import Text.Stencil.Parse
 import Text.Stencil.Types
 
-import Control.Monad.Trans.Except (ExceptT (ExceptT), runExceptT)
+import qualified Data.Text.Lazy as TL
 
-import Control.Applicative  ((<$>), (<*>))
-import Data.Attoparsec.Text (parseOnly)
-import Data.Text            (Text)
-
-import qualified Data.Text as T
-
-type Loader = FilePath -> IO (Maybe Text)
+type Loader = FilePath -> IO (Maybe TL.Text)
 
 type ResolveIncludes a = Loader -> IO (Either StencilError a)
 
@@ -46,6 +43,12 @@ instance JinjaSYM repr => JinjaSYM (ResolveIncludes repr) where
 
 instance JinjaSYM repl =>
     JinjaIncludeSYM (Loader -> IO (Either StencilError repl)) where
-      include file loader = fmap T.init <$> loader file >>=
+      include file loader = fmap TL.init <$> loader file >>=
           maybe (left $ NoSuchInclude file)
-                (either (left . InvalidTemplateFile file ) ($ loader) . parseOnly templateParser)
+                (either left ($ loader) . eitherParse file templateParser)
+
+eitherParse :: FilePath -> Parser r -> TL.Text -> Either StencilError r
+eitherParse file parser =
+      either (Left . InvalidTemplateFile file) Right
+    . eitherResult
+    . parse parser
