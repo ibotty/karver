@@ -44,7 +44,8 @@ import qualified Data.Text.Lazy         as TL
 import qualified Data.Text.Lazy.Builder as TB
 
 -- | Renders a template
-renderTemplate :: (FilePath -> IO (Maybe TL.Text))
+renderTemplate :: (Functor m, Monad m)
+               => (FilePath -> m (Maybe TL.Text))
                -- ^ load templates that are included
                -> (StencilError -> Either StencilError Text)
                -- ^ error handler
@@ -53,7 +54,7 @@ renderTemplate :: (FilePath -> IO (Maybe TL.Text))
                --   a given template
                -> TL.Text
                -- ^ Template
-               -> IO (Either StencilError TL.Text)
+               -> m (Either StencilError TL.Text)
 renderTemplate loader handler ctx tmpl =
     case eitherResult $ parse (many templateParser) tmpl of
       Right r -> do
@@ -65,7 +66,7 @@ renderTemplate loader handler ctx tmpl =
       Left err -> return $ TL.fromStrict <$> handler (InvalidTemplate "(inline)" err)
 
 
-loadTemplatesInDir :: FilePath -> Loader
+loadTemplatesInDir :: FilePath -> Loader IO
 loadTemplatesInDir basePath f =
     doesFileExist file >>= \case
       False -> return Nothing
@@ -74,7 +75,7 @@ loadTemplatesInDir basePath f =
     file = normalise $ basePath </> f
     try' = fmap (either (\(_ :: SomeException) -> Nothing) Just) . try
 
-loadTemplates :: Loader
+loadTemplates :: Loader IO
 loadTemplates file = getCurrentDirectory >>= flip loadTemplatesInDir file
 
 continueHandler :: StencilError -> Either StencilError Text

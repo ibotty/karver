@@ -17,11 +17,11 @@ import Text.Stencil.Types
 
 import qualified Data.Text.Lazy as TL
 
-type Loader = FilePath -> IO (Maybe TL.Text)
+type Loader m = FilePath -> m (Maybe TL.Text)
 
-type ResolveIncludes a = Loader -> IO (Either StencilError a)
+type ResolveIncludes m a = Loader m -> m (Either StencilError a)
 
-resolveIncludes :: JinjaSYM repl => Loader -> ResolveIncludes repl -> IO (Either StencilError repl)
+resolveIncludes :: (JinjaSYM repl, Monad m) => Loader m -> ResolveIncludes m repl -> m (Either StencilError repl)
 resolveIncludes loader repr = repr loader
 
 right :: Monad m => b -> m (Either a b)
@@ -30,7 +30,7 @@ right = return . Right
 left :: Monad m => a -> m (Either a b)
 left = return . Left
 
-instance JinjaSYM repr => JinjaSYM (ResolveIncludes repr) where
+instance (JinjaSYM repr, Functor m, Monad m) => JinjaSYM (ResolveIncludes m repr) where
     tokens xs loader = runExceptT $ tokens <$> mapM (ExceptT . ($ loader)) xs
     literal = const . right . literal
     variable = const . right . variable
@@ -41,8 +41,8 @@ instance JinjaSYM repr => JinjaSYM (ResolveIncludes repr) where
     loop var identifier body loader = runExceptT $
         loop var identifier <$> mapM (ExceptT . ($ loader)) body
 
-instance JinjaSYM repl =>
-    JinjaIncludeSYM (Loader -> IO (Either StencilError repl)) where
+instance (JinjaSYM repl, Functor m, Monad m) =>
+    JinjaIncludeSYM (Loader m -> m (Either StencilError repl)) where
       include file loader = fmap TL.init <$> loader file >>=
           maybe (left $ NoSuchInclude file)
                 (either left ($ loader) . eitherParse file templateParser)
