@@ -45,8 +45,10 @@ type Context = HashMap Text Value
 
 {- | Render a template using given 'Config'.
 
->>> ctx = HM.fromList [("key", "value")]
->>> renderTemplate defaultConfig ctx "{% if key %} the value of key is {{ value }} {% endif %}"
+>>> let ctx = HM.fromList [("key", Literal "value")]
+>>> let tmpl = "{% if key %}the value of key is {{ key }}.{% endif %}"
+>>> renderTemplate defaultConfig ctx tmpl
+Right "the value of key is value."
 -}
 renderTemplate :: (Functor m, Monad m)
                => Config m
@@ -114,3 +116,8 @@ renderTemplate'' json tpl =
                $ setErrorHandler continueHandler
                  defaultConfig
 
+-- $setup
+-- This is the doctest setup
+-- >>> :set -XOverloadedStrings
+-- >>> :set -XNoMonomorphismRestriction
+-- >>> import qualified Data.HashMap.Strict as HM
