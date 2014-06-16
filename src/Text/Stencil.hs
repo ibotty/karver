@@ -65,8 +65,8 @@ renderTemplate config ctx tmpl =
                 TB.toLazyText . rawRenderer <$> renderParsedTemplate handler ctx resolved
       Left err -> return $ TL.fromStrict <$> handler (InvalidTemplate "(inline)" err)
   where
-    handler = confErrorHandler config
-    loader' = confLoader config
+    handler = get errorHandler config
+    loader' = get loader config
 
 renderTemplateFile
   :: (Functor m, Monad m)
@@ -74,7 +74,7 @@ renderTemplateFile
   -> Context  -- ^ Context
   -> FilePath -- ^ template to load using 'Config''s 'Loader'
   -> m (Either StencilError TL.Text)
-renderTemplateFile conf ctx file = confLoader conf file >>=
+renderTemplateFile conf ctx file = get loader conf file >>=
     maybe (return . Left $ NoSuchInclude file)
           (renderTemplate conf ctx)
 
@@ -90,7 +90,7 @@ renderTemplate' file tpl =
         renderTemplate config ctx tpl
     Nothing     -> error "renderTemplate': could not decode JSON."
   where err e = error $ "renderTemplate': something went wrong: " ++ show e
-        config = setErrorHandler continueHandler defaultConfig
+        config = set errorHandler continueHandler defaultConfig
 
 
 
@@ -106,7 +106,7 @@ renderTemplate'' json tpl =
         renderTemplate config ctx tpl
     Nothing     -> error "renderTemplate': could not decode JSON."
   where err e = error $ "renderTemplate': something went wrong: " ++ show e
-        config = setErrorHandler continueHandler defaultConfig
+        config = set errorHandler continueHandler defaultConfig
 
 -- $setup
 -- This is the doctest setup
