@@ -3,8 +3,7 @@
 {-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Text.Stencil.ResolveIncludes
-  ( Loader
-  , ResolveIncludes
+  ( ResolveIncludes
   , resolveIncludes
   )
   where
@@ -16,8 +15,6 @@ import Text.Stencil.Parse
 import Text.Stencil.Types
 
 import qualified Data.Text.Lazy as TL
-
-type Loader m = FilePath -> m (Maybe TL.Text)
 
 type ResolveIncludes m a = Loader m -> m (Either StencilError a)
 

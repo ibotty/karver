@@ -14,6 +14,8 @@ module Text.Stencil.Types
 ( Value(..)
 , Token(..)
 , StencilError(..)
+, ErrorHandler
+, Loader
 , JinjaSYM(..)
 , JinjaIncludeSYM(..)
 , Variable(..)
@@ -34,6 +36,7 @@ import Data.Vector         (Vector, (!?))
 
 import qualified Data.Aeson          as A
 import qualified Data.HashMap.Strict as HM
+import qualified Data.Text.Lazy as TL
 
 data StencilError = InvalidTemplate Text String
                  | InvalidTemplateFile FilePath String
@@ -45,6 +48,10 @@ data StencilError = InvalidTemplate Text String
 instance Monoid StencilError where
   mappend e e' = ManyErrors [e, e']
   mempty = ManyErrors []
+
+type ErrorHandler = StencilError -> Either StencilError Text
+
+type Loader m = FilePath -> m (Maybe TL.Text)
 
 data Variable = Variable Text
               | ObjectKey Text Text

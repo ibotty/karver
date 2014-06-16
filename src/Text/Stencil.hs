@@ -1,6 +1,5 @@
 {-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 -- |
 -- Module:      Data.Stencil
 -- Copyright:   Tobias Florek 2014
@@ -15,75 +14,71 @@
 
 module Text.Stencil
 ( renderTemplate
+, renderTemplateFile
 , renderTemplate'
 , renderTemplate''
 , loadTemplatesInDir
 , loadTemplates
 , continueHandler
+, defaultConfig
 , module Text.Stencil.Types
 ) where
 
+import Text.Stencil.Config
 import Text.Stencil.Compiler
+import Text.Stencil.Helper
 import Text.Stencil.Parse
 import Text.Stencil.ResolveIncludes
 import Text.Stencil.Types
 
 import Control.Applicative  (many, (<$>))
-import Control.Exception    (SomeException, try)
 import Data.Aeson           (decode')
 import Data.Attoparsec.Text.Lazy (eitherResult, parse)
 import Data.HashMap.Strict  (HashMap)
 import Data.Text            (Text)
-import System.Directory     (doesFileExist, getCurrentDirectory)
-import System.FilePath      (normalise, (</>))
 
 import qualified Data.ByteString.Lazy   as BL
-import qualified Data.Text              as T
-import qualified Data.Text.Lazy.IO      as TLIO
 import qualified Data.Text.Lazy         as TL
 import qualified Data.Text.Lazy.Builder as TB
 
--- | Renders a template
+type Context = HashMap Text Value
+
+{- | Render a template using given 'Config'.
+
+>>> ctx = HM.fromList [("key", "value")]
+>>> renderTemplate defaultConfig ctx "{% if key %} the value of key is {{ value }} {% endif %}"
+-}
 renderTemplate :: (Functor m, Monad m)
-               => (FilePath -> m (Maybe TL.Text))
-               -- ^ load templates that are included
-               -> (StencilError -> Either StencilError Text)
-               -- ^ error handler
-               -> HashMap Text Value
+               => Config m
+               -- ^ Configuration
+               -> Context
                -- ^ Data map for variables inside
                --   a given template
                -> TL.Text
                -- ^ Template
                -> m (Either StencilError TL.Text)
-renderTemplate loader handler ctx tmpl =
+renderTemplate config ctx tmpl =
     case eitherResult $ parse (many templateParser) tmpl of
       Right r -> do
-          eResolved <- resolveIncludes loader (tokens r)
+          eResolved <- resolveIncludes loader' (tokens r)
           return $ case eResolved of
             Left err -> TL.fromStrict <$> handler err
             Right resolved ->
                 TB.toLazyText . rawRenderer <$> renderParsedTemplate handler ctx resolved
       Left err -> return $ TL.fromStrict <$> handler (InvalidTemplate "(inline)" err)
-
-
-loadTemplatesInDir :: FilePath -> Loader IO
-loadTemplatesInDir basePath f =
-    doesFileExist file >>= \case
-      False -> return Nothing
-      True  -> try' $ TLIO.readFile file
   where
-    file = normalise $ basePath </> f
-    try' = fmap (either (\(_ :: SomeException) -> Nothing) Just) . try
+    handler = confErrorHandler config
+    loader' = confLoader config
 
-loadTemplates :: Loader IO
-loadTemplates file = getCurrentDirectory >>= flip loadTemplatesInDir file
-
-continueHandler :: StencilError -> Either StencilError Text
-continueHandler (InvalidTemplate _ _) = Right T.empty
-continueHandler (InvalidTemplateFile _ _) = Right T.empty
-continueHandler (LookupError _) = Right T.empty
-continueHandler (NoSuchInclude err) = Right (T.pack err)
-continueHandler (ManyErrors _) = Right T.empty
+renderTemplateFile
+  :: (Functor m, Monad m)
+  => Config m -- ^ Configuration
+  -> Context  -- ^ Context
+  -> FilePath -- ^ template to load using 'Config''s 'Loader'
+  -> m (Either StencilError TL.Text)
+renderTemplateFile conf ctx file = confLoader conf file >>=
+    maybe (return . Left $ NoSuchInclude file)
+          (renderTemplate conf ctx)
 
 -- | Similar to renderTemplate, only it takes JSON 'Text' instead of
 -- a 'HashMap'
@@ -94,9 +89,12 @@ renderTemplate' :: FilePath -- ^ file with JSON data, for variables inside a giv
 renderTemplate' file tpl =
   decode' <$> BL.readFile file >>= \case
     (Just ctx) -> either err id <$>
-        renderTemplate loadTemplates continueHandler ctx tpl
+        renderTemplate config ctx tpl
     Nothing     -> error "renderTemplate': could not decode JSON."
   where err e = error $ "renderTemplate': something went wrong: " ++ show e
+        config = setLoader loadTemplates
+               $ setErrorHandler continueHandler
+                 defaultConfig
 
 
 
@@ -109,7 +107,10 @@ renderTemplate'' :: BL.ByteString -- ^ file with JSON data, for variables inside
 renderTemplate'' json tpl =
   case decode' json of
     (Just ctx) -> either err id <$>
-        renderTemplate loadTemplates continueHandler ctx tpl
+        renderTemplate config ctx tpl
     Nothing     -> error "renderTemplate': could not decode JSON."
   where err e = error $ "renderTemplate': something went wrong: " ++ show e
+        config = setLoader loadTemplates
+               $ setErrorHandler continueHandler
+                 defaultConfig
 
