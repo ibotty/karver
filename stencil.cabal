@@ -89,6 +89,7 @@ test-suite doctest
   hs-source-dirs: test
   main-is:          DocTest.hs
   build-depends:    base
+                  , stencil
                   , Glob >=0.6 && <0.8
                   , doctest >=0.9.9 && <0.10
 
