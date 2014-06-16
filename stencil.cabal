@@ -44,6 +44,20 @@ library
                   , bytestring >= 0.10 && < 0.12
                   , aeson >= 0.6 && < 0.8
 
+test-suite tests
+  type:           exitcode-stdio-1.0
+  ghc-options:    -Wall -Werror
+  hs-source-dirs: test
+  main-is:          Main.hs
+  build-depends:    base
+                  , bytestring
+                  , stencil
+                  , text
+                  , directory
+                  , aeson
+                  , tasty ==0.8.*
+                  , tasty-golden ==2.2.*
+
 test-suite spec
   type:           exitcode-stdio-1.0
   ghc-options:    -Wall -Werror
