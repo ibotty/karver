@@ -1,7 +1,16 @@
 module Text.Stencil.Config
-  ( module Text.Stencil.Config
+  ( Extension(..)
+  , defaultConfig
+  , minimalConfig
+  , loader
+  , extensions
+  , errorHandler
+  , setLoader
+  , addExtension
+  , setErrorHandler
   ) where
 
+import Text.Stencil.Helper
 import Text.Stencil.Types
 
 import Data.Set (Set)
@@ -17,9 +26,15 @@ data Config m = Config
   , confErrorHandler :: ErrorHandler
   }
 
-defaultConfig :: Monad m => Config m
-defaultConfig = Config { confLoader = return . const Nothing
-                       , confExtensions = Set.singleton LoadIncludes
+-- | A 'Config'uration that augments 'minimalConfig' with a
+defaultConfig :: Config IO
+defaultConfig = setLoader loadTemplates
+              $ addExtension LoadIncludes
+                minimalConfig
+
+minimalConfig :: Monad m => Config m
+minimalConfig = Config { confLoader = return . const Nothing
+                       , confExtensions = Set.empty
                        , confErrorHandler = Left
                        }
 

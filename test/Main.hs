@@ -25,7 +25,7 @@ setupGoldenTests dir = do
     ctx <- fromMaybe (error "cannot decode context.json") . A.decode'
            <$> BL.readFile (testDir <> "/context.json")
     let run f = fmap (either renderFailure TLE.encodeUtf8)
-              . renderTemplate config ctx
+              . renderTemplate defaultConfig ctx
               =<<  TLE.decodeUtf8 <$> BL.readFile f
         testFromFile f = goldenVsString f (f <> ".golden") (run f)
 
@@ -38,7 +38,6 @@ setupGoldenTests dir = do
     return $ Tasty.testGroup "Golden tests in test/golden" goldenTests
   where
     testDir = "test/" <> dir <> "/"
-    config = setLoader loadTemplates defaultConfig
     renderFailure = error . ("cannot render file " <>) . show
 
 -- tests :: Tasty.TestTree

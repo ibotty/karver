@@ -94,9 +94,7 @@ renderTemplate' file tpl =
         renderTemplate config ctx tpl
     Nothing     -> error "renderTemplate': could not decode JSON."
   where err e = error $ "renderTemplate': something went wrong: " ++ show e
-        config = setLoader loadTemplates
-               $ setErrorHandler continueHandler
-                 defaultConfig
+        config = setErrorHandler continueHandler defaultConfig
 
 
 
@@ -112,9 +110,7 @@ renderTemplate'' json tpl =
         renderTemplate config ctx tpl
     Nothing     -> error "renderTemplate': could not decode JSON."
   where err e = error $ "renderTemplate': something went wrong: " ++ show e
-        config = setLoader loadTemplates
-               $ setErrorHandler continueHandler
-                 defaultConfig
+        config = setErrorHandler continueHandler defaultConfig
 
 -- $setup
 -- This is the doctest setup
