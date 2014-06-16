@@ -7,7 +7,6 @@ import Data.Monoid ((<>))
 import Data.List (isSuffixOf)
 import Test.Tasty.Golden (goldenVsString)
 import Text.Stencil
-import Text.Stencil.Config
 import System.Directory (getDirectoryContents)
 
 import qualified Test.Tasty as Tasty

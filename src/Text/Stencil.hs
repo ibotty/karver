@@ -34,14 +34,10 @@ import Text.Stencil.Types
 import Control.Applicative  (many, (<$>))
 import Data.Aeson           (decode')
 import Data.Attoparsec.Text.Lazy (eitherResult, parse)
-import Data.HashMap.Strict  (HashMap)
-import Data.Text            (Text)
 
 import qualified Data.ByteString.Lazy   as BL
 import qualified Data.Text.Lazy         as TL
 import qualified Data.Text.Lazy.Builder as TB
-
-type Context = HashMap Text Value
 
 {- | Render a template using given 'Config'.
 

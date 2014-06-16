@@ -11,20 +11,21 @@
 -- Base types used throughout Stencil.
 
 module Text.Stencil.Types
-( Value(..)
-, Token(..)
-, StencilError(..)
-, ErrorHandler
-, Loader
-, JinjaSYM(..)
-, JinjaIncludeSYM(..)
-, Variable(..)
-, Key(..)
-, Condition(..)
-, Identifier(..)
-, duplicate
-, lookupVariable
-) where
+  ( Context
+  , Value(..)
+  , Token(..)
+  , StencilError(..)
+  , ErrorHandler
+  , Loader
+  , JinjaSYM(..)
+  , JinjaIncludeSYM(..)
+  , Variable(..)
+  , Key(..)
+  , Condition(..)
+  , Identifier(..)
+  , duplicate
+  , lookupVariable
+  ) where
 
 import Control.Applicative ((<$>))
 import Data.HashMap.Strict (HashMap)
@@ -37,6 +38,8 @@ import Data.Vector         (Vector, (!?))
 import qualified Data.Aeson          as A
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text.Lazy as TL
+
+type Context = HashMap Text Value
 
 data StencilError = InvalidTemplate Text String
                  | InvalidTemplateFile FilePath String
@@ -58,7 +61,7 @@ data Variable = Variable Text
               | ListIndex Text Int
   deriving (Eq, Ord, Read, Show)
 
-lookupVariable :: Variable -> HashMap Text Value -> Maybe Value
+lookupVariable :: Variable -> Context -> Maybe Value
 lookupVariable (Variable v) ctx = HM.lookup v ctx
 lookupVariable (ObjectKey v k) ctx =
     case HM.lookup v ctx of
@@ -149,8 +152,8 @@ data Token = LiteralTok   Text
 -- one type.
 data Value = Literal Text
            -- ^ The base value for the storing of variable.
-           | Object (HashMap Text Value)
-           -- ^ An alias for 'HashMap', that will only hold 'Text' with
+           | Object Context
+           -- ^ An alias for 'Context', that will only hold 'Text' with
            --   'Text' as a key as well.
            | List   (Vector Value)
            -- ^ An alias for 'Vector', that can hold all three 'Value's

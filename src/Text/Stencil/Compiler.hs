@@ -11,7 +11,6 @@ module Text.Stencil.Compiler
 
 import Control.Applicative    ((<$>))
 import Control.Monad          (foldM)
-import Data.HashMap.Strict    (HashMap)
 import Data.Monoid            (Monoid, mconcat, mempty, (<>))
 import Data.Text              (Text)
 import Data.Text.Lazy.Builder (Builder)
@@ -23,11 +22,11 @@ import qualified Data.Text.Lazy.Builder as TB
 import qualified Data.Vector            as V
 
 type Renderer' = (StencilError -> Either StencilError Text)
-               -> HashMap Text Value
+               -> Context
                -> Either StencilError Renderer
 
 renderParsedTemplate :: (StencilError -> Either StencilError Text)
-                     -> HashMap Text Value
+                     -> Context
                      -> Renderer'
                      -> Either StencilError Renderer
 renderParsedTemplate handler ctx tmpl = tmpl handler ctx
