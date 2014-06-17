@@ -21,6 +21,11 @@ source-repository head
   type:           git
   location:       git://github.com/ibotty/stencil.git
 
+flag buildExecutable
+  default: False
+  description: Build the executable
+  manual: True
+
 flag newTransformers
   default: True
   description: Use new transformers instead of transformers-compat
@@ -54,6 +59,22 @@ library
     build-depends:
                     transformers >=0.3 && <0.4
                   , transformers-compat >=0.3 && <0.4
+
+executable stencil
+  if flag(buildExecutable)
+    buildable:    True
+    build-depends:  base >= 4.6 && < 4.8
+                  , aeson >= 0.6 && < 0.8
+                  , optparse-applicative >=0.8 && <0.10
+                  , bytestring >= 0.10 && < 0.12
+                  , text >= 0.11 && < 1.2
+                  , unordered-containers >= 0.2 && < 0.3
+                  , stencil
+  else
+    buildable:    False
+  ghc-options:    -Wall
+  hs-source-dirs: stencil
+  main-is:        Main.hs
 
 test-suite tasty
   type:           exitcode-stdio-1.0
