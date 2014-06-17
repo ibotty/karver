@@ -1,0 +1,3 @@
+  emptyObjectVar evaluates to false
+
+  objectVar evaluates to true

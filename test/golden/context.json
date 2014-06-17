@@ -1,1 +1,1 @@
-{"textVar": "some text","listVar": ["a", "list"], "noNumVar": "2"}
+{"textVar": "some text","listVar": ["a", "list"], "noNumVar": "2", "objectVar":{"textVar": "some other text"}, "emptyObjectVar":{}, "emptyListVar":[]}
