@@ -19,7 +19,7 @@ before_install:
 
 install:
  - cabal-1.18 update
- - cabal-1.18 install --only-dependencies --enable-tests
+ - cabal-1.18 install --only-dependencies --enable-tests -f buildExecutable
 
 script:
  - cabal-1.18 configure --enable-tests -v2
