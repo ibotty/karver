@@ -34,24 +34,21 @@ renderParsedTemplate handler ctx tmpl = tmpl handler ctx
 newtype Renderer = Renderer {rawRenderer :: Builder}
   deriving Monoid
 
-rightRendererFromText :: Text -> Either a Renderer
-rightRendererFromText = Right . Renderer . TB.fromText
-
 instance JinjaSYM Renderer' where
     tokens xs handler ctx = foldM step mempty xs
       where
         step text b = (text <>) <$> b handler ctx
 
-    literal n _ _ = rightRendererFromText n
+    literal n _ _ = Right $ Renderer n
 
     variable var handler ctx =
         case lookupVariable var ctx of
-          Just (Literal s) -> rightRendererFromText s
+          Just (Literal s) -> Right $ Renderer s
           _                -> Renderer . TB.fromText <$> handler (LookupError var)
 
     condition (VariableNotNull v) t f handler ctx = mconcat <$>
         case lookupVariable v ctx of
-          Just (Literal s) -> whenDo $ not (T.null  s)
+          Just (Literal s) -> whenDo $ s /= mempty
           Just (List l)    -> whenDo $ not (V.null  l)
           Just (Object o)  -> whenDo $ not (HM.null o)
           Nothing          -> whenDo =<< not . T.null <$> handler (LookupError v)

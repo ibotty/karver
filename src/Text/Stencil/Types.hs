@@ -30,13 +30,15 @@ import Control.Applicative ((<$>))
 import Data.HashMap.Strict (HashMap)
 import Data.Monoid         (Monoid, mappend, mempty)
 import Data.String         (IsString, fromString)
-import Data.Text           (Text, pack)
+import Data.Text           (Text)
+import Data.Text.Lazy.Builder (Builder)
 import Data.Typeable       (Typeable)
 import Data.Vector         (Vector, (!?))
 
 import qualified Data.Aeson          as A
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Builder as TLB
 
 type Context = HashMap Text Value
 
@@ -85,7 +87,7 @@ newtype Identifier = Identifier Text
 
 class JinjaSYM repr where
     tokens :: [repr] -> repr
-    literal :: Text -> repr
+    literal :: Builder -> repr
     variable :: Variable -> repr
     condition :: Condition -> [repr] -> [repr] -> repr
     loop :: Variable -> Identifier -> [repr] -> repr
@@ -113,7 +115,7 @@ duplicate = id
 -- | Fairly basic work around for using different types inside a 'HashMap'.
 -- The 'Value' type also make it possible for 'List' to contain more than
 -- one type.
-data Value = Literal Text
+data Value = Literal Builder
            -- ^ The base value for the storing of variable.
            | Object Context
            -- ^ An alias for 'Context', that will only hold 'Text' with
@@ -127,8 +129,8 @@ data Value = Literal Text
 instance A.FromJSON Value where
   parseJSON o@(A.Object _) = Object <$> A.parseJSON o
   parseJSON a@(A.Array _)  = List <$> A.parseJSON a
-  parseJSON v              = Literal <$> A.parseJSON v
+  parseJSON v              = Literal . TLB.fromText <$> A.parseJSON v
   {-# INLINE parseJSON #-}
 
 instance IsString Value where
-  fromString = Literal . pack
+  fromString = Literal . TLB.fromString

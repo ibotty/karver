@@ -17,6 +17,7 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.Encoding as TLE
+import qualified Data.Text.Lazy.Builder as TLB
 
 data FileOrHandle = File    FilePath
                   | Handle' Handle
@@ -56,7 +57,7 @@ parseContextOpt =
             <> metavar "VARSFILE"
             )
     ) <|>
-    (Right . HM.fromList . map (second (Literal . T.tail) . T.breakOn "=" . T.pack) <$> many (
+    (Right . HM.fromList . map (second (Literal . TLB.fromText . T.tail) . T.breakOn "=" . T.pack) <$> many (
          strOption
              (  short 'v'
              <> long "var"

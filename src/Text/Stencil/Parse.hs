@@ -32,6 +32,7 @@ import Control.Monad (void)
 import Data.Text            (Text)
 
 import qualified Data.Text as T
+import qualified Data.Text.Lazy.Builder as TLB
 
 templateParser :: (JinjaSYM repr, JinjaIncludeSYM repr) => Parser repr
 templateParser = fix includeParserExt
@@ -51,7 +52,7 @@ includeParserExt self = templateParserExt self <|> includeParser
 
 -- | Takes everything until it reaches a @{@, resulting in the 'LiteralTok'
 literalParser :: JinjaSYM repr => Parser repr
-literalParser = literal <$> takeWhile1 (/= '{')
+literalParser = literal . TLB.fromText <$> takeWhile1 (/= '{')
 
 -- General function for making parsers that will be surrounded by a curtain
 -- delimiter — which has both a beginning and end.
