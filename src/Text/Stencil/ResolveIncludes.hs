@@ -3,49 +3,52 @@
 {-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Text.Stencil.ResolveIncludes
-  ( ResolveIncludes
+  ( ResolveIncludes()
   , resolveIncludes
   )
   where
 
-import Control.Applicative  ((<$>), (<*>))
-import Control.Monad.Trans.Except (ExceptT (ExceptT), runExceptT)
-import Data.Attoparsec.Text.Lazy (Parser, parse, eitherResult)
-import Text.Stencil.Parse
+import Control.Applicative  (Applicative, (<$>), (<*>), pure)
+import Data.Attoparsec.Text.Lazy (Parser, parse, maybeResult)
+import Data.Traversable (traverse)
 import Text.Stencil.Types
 
 import qualified Data.Text.Lazy as TL
 
-type ResolveIncludes m a = Loader m -> m (Either StencilError a)
+data ResolveIncludes m a = ResolveIncludes { unwrapRI :: Loader m -> Parser (ResolveIncludes m a) -> m a }
 
-resolveIncludes :: (JinjaSYM repl, Monad m) => Loader m -> ResolveIncludes m repl -> m (Either StencilError repl)
-resolveIncludes loader repr = repr loader
+resolveIncludes :: Loader m -> Parser (ResolveIncludes m r) -> ResolveIncludes m r -> m r
+resolveIncludes loader parser r = unwrapRI r loader parser
 
-right :: Monad m => b -> m (Either a b)
-right = return . Right
+instance (JinjaSYM r, Functor m, Applicative m) =>
+    JinjaSYM (ResolveIncludes m r)
+  where
+    tokens xs = ResolveIncludes $ \loader parser ->
+        tokens <$> traverse (resolveIncludes loader parser) xs
+    literal t = ResolveIncludes $ \_ _ ->
+        pure $ literal t
 
-left :: Monad m => a -> m (Either a b)
-left = return . Left
+instance (JinjaVariableSYM r, Functor m, Applicative m) =>
+    JinjaVariableSYM (ResolveIncludes m r)
+  where
+    variable var = ResolveIncludes $ \_ _ ->
+       pure $ variable var
+    condition c ifBody elseBody = ResolveIncludes $ \loader parser ->
+        condition c <$> traverse (resolveIncludes loader parser) ifBody
+                    <*> traverse (resolveIncludes loader parser) elseBody
 
-instance (JinjaSYM repr, Functor m, Monad m) => JinjaSYM (ResolveIncludes m repr) where
-    tokens xs loader = runExceptT $ tokens <$> mapM (ExceptT . ($ loader)) xs
-    literal = const . right . literal
-    variable = const . right . variable
-    condition c ifBody elseBody loader = runExceptT $
-        condition c <$> mapM (ExceptT . ($ loader)) ifBody
-                    <*> mapM (ExceptT . ($ loader)) elseBody
+    loop var identifier body = ResolveIncludes $ \loader parser ->
+        loop var identifier <$> traverse (resolveIncludes loader parser) body
 
-    loop var identifier body loader = runExceptT $
-        loop var identifier <$> mapM (ExceptT . ($ loader)) body
+instance (JinjaIncludeSYM r, Functor m, Monad m, Applicative m) =>
+    JinjaIncludeSYM (ResolveIncludes m r)
+  where
+    include file = ResolveIncludes $ \loader parser ->
+        fmap TL.init <$> loader file >>= \case
+            Nothing   -> return $ include file
+            Just tmpl -> case maybeParse parser tmpl of
+                           Nothing -> return $ include file
+                           Just r  -> resolveIncludes loader parser r
 
-instance (JinjaSYM repl, Functor m, Monad m) =>
-    JinjaIncludeSYM (Loader m -> m (Either StencilError repl)) where
-      include file loader = fmap TL.init <$> loader file >>=
-          maybe (left $ NoSuchInclude file)
-                (either left ($ loader) . eitherParse file templateParser)
-
-eitherParse :: FilePath -> Parser r -> TL.Text -> Either StencilError r
-eitherParse file parser =
-      either (Left . InvalidTemplateFile file) Right
-    . eitherResult
-    . parse parser
+maybeParse :: Parser r -> TL.Text -> Maybe r
+maybeParse parser = maybeResult . parse parser

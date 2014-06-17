@@ -19,25 +19,25 @@ module Text.Stencil
 , renderTemplate''
 , loadTemplatesInDir
 , loadTemplates
-, continueHandler
 , defaultConfig
 , module Text.Stencil.Types
 ) where
 
 import Text.Stencil.Config
 import Text.Stencil.Compiler
+import Text.Stencil.ErrorHandler
 import Text.Stencil.Helper
 import Text.Stencil.Parse
 import Text.Stencil.ResolveIncludes
 import Text.Stencil.Types
 
-import Control.Applicative  (many, (<$>))
+import Control.Applicative  (Applicative, many, (<$>))
 import Data.Aeson           (decode')
 import Data.Attoparsec.Text.Lazy (eitherResult, parse)
 
 import qualified Data.ByteString.Lazy   as BL
 import qualified Data.Text.Lazy         as TL
-import qualified Data.Text.Lazy.Builder as TB
+import qualified Data.Text.Lazy.Builder as TLB
 
 {- | Render a template using given 'Config'.
 
@@ -46,8 +46,8 @@ import qualified Data.Text.Lazy.Builder as TB
 >>> renderTemplate defaultConfig ctx tmpl
 Right "the value of key is value."
 -}
-renderTemplate :: (Functor m, Monad m)
-               => Config m
+renderTemplate :: (Functor m, Applicative m, Monad m)
+               => Config m r
                -- ^ Configuration
                -> Context
                -- ^ Data map for variables inside
@@ -56,21 +56,22 @@ renderTemplate :: (Functor m, Monad m)
                -- ^ Template
                -> m (Either StencilError TL.Text)
 renderTemplate config ctx tmpl =
-    case eitherResult $ parse (many templateParser) tmpl of
+    case eitherResult $ parse (many parser) tmpl of
       Right r -> do
-          eResolved <- resolveIncludes loader' (tokens r)
-          return $ case eResolved of
-            Left err -> TL.fromStrict <$> handler err
-            Right resolved ->
-                TB.toLazyText . rawRenderer <$> renderParsedTemplate handler ctx resolved
-      Left err -> return $ TL.fromStrict <$> handler (InvalidTemplate "(inline)" err)
+          eResolved <- failIncludesHandler <$> resolveIncludes loader' parser (tokens r)
+          return $ do
+            resolved <- eResolved
+            boundTemplate <- failHandler $ bindVariables ctx resolved
+            Right . TLB.toLazyText . render $ boundTemplate
+      Left err -> return . Left $ InvalidTemplate "(inline)" err
   where
+    parser = templateParser
     handler = get errorHandler config
     loader' = get loader config
 
 renderTemplateFile
-  :: (Functor m, Monad m)
-  => Config m -- ^ Configuration
+  :: (Functor m, Applicative m, Monad m)
+  => Config m r -- ^ Configuration
   -> Context  -- ^ Context
   -> FilePath -- ^ template to load using 'Config''s 'Loader'
   -> m (Either StencilError TL.Text)
@@ -90,7 +91,7 @@ renderTemplate' file tpl =
         renderTemplate config ctx tpl
     Nothing     -> error "renderTemplate': could not decode JSON."
   where err e = error $ "renderTemplate': something went wrong: " ++ show e
-        config = set errorHandler continueHandler defaultConfig
+        config = defaultConfig -- set errorHandler continueHandler defaultConfig
 
 
 
@@ -106,7 +107,7 @@ renderTemplate'' json tpl =
         renderTemplate config ctx tpl
     Nothing     -> error "renderTemplate': could not decode JSON."
   where err e = error $ "renderTemplate': something went wrong: " ++ show e
-        config = set errorHandler continueHandler defaultConfig
+        config = defaultConfig -- set errorHandler continueHandler defaultConfig
 
 -- $setup
 -- This is the doctest setup

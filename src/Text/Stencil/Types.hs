@@ -17,6 +17,7 @@ module Text.Stencil.Types
   , ErrorHandler
   , Loader
   , JinjaSYM(..)
+  , JinjaVariableSYM(..)
   , JinjaIncludeSYM(..)
   , Variable(..)
   , Key(..)
@@ -43,17 +44,17 @@ import qualified Data.Text.Lazy.Builder as TLB
 type Context = HashMap Text Value
 
 data StencilError = InvalidTemplate Text String
-                 | InvalidTemplateFile FilePath String
-                 | NoSuchInclude FilePath
-                 | LookupError Variable
-                 | ManyErrors [StencilError]
+                  | InvalidTemplateFile FilePath
+                  | NoSuchInclude FilePath
+                  | LookupError Variable
+                  | ManyErrors [StencilError]
   deriving (Show, Read, Eq, Ord, Typeable)
 
 instance Monoid StencilError where
   mappend e e' = ManyErrors [e, e']
   mempty = ManyErrors []
 
-type ErrorHandler = StencilError -> Either StencilError Text
+type ErrorHandler r = StencilError -> Either StencilError r
 
 type Loader m = FilePath -> m (Maybe TL.Text)
 
@@ -88,6 +89,8 @@ newtype Identifier = Identifier Text
 class JinjaSYM repr where
     tokens :: [repr] -> repr
     literal :: Builder -> repr
+
+class JinjaVariableSYM repr where
     variable :: Variable -> repr
     condition :: Condition -> [repr] -> [repr] -> repr
     loop :: Variable -> Identifier -> [repr] -> repr
@@ -99,6 +102,8 @@ instance (JinjaSYM repr, JinjaSYM repr') => JinjaSYM (repr, repr') where
     tokens terms = (tokens xs, tokens xs')
       where (xs, xs') = unzip terms
     literal x = (literal x, literal x)
+
+instance (JinjaVariableSYM repr, JinjaVariableSYM repr') => JinjaVariableSYM (repr, repr') where
     variable var = (variable var, variable var)
     condition l t f = (condition l ifB elseB, condition l ifB' elseB')
       where (ifB, ifB') = unzip t

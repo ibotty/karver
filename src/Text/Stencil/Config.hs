@@ -26,43 +26,43 @@ import qualified Data.Set as Set
 data Extension = LoadIncludes
   deriving (Eq, Show, Read, Ord, Bounded)
 
-data Config m = Config
+data Config m r = Config
   { confLoader :: Loader m
   , confExtensions :: Set Extension
-  , confErrorHandler :: ErrorHandler
+  , confErrorHandler :: ErrorHandler r
   }
 
 -- | A 'Config'uration that augments 'minimalConfig' with a
-defaultConfig :: Config IO
+defaultConfig :: Config IO r
 defaultConfig = set loader loadTemplates
               $ addExtension LoadIncludes
                 minimalConfig
 
 -- | A minimal 'Config'uration so that no includes get loaded.
-minimalConfig :: Monad m => Config m
+minimalConfig :: Monad m => Config m r
 minimalConfig = Config { confLoader = return . const Nothing
                        , confExtensions = Set.empty
                        , confErrorHandler = Left
                        }
 
 -- | A lens to access the file 'Loader' of a 'Config'.
-loader :: Lens' (Config m) (Loader m)
+loader :: Lens' (Config m r) (Loader m)
 loader f conf = fmap (`setLoader` conf) (f (confLoader conf))
 
 -- | A lens to access the error handler.
-errorHandler :: Lens' (Config m) ErrorHandler
+errorHandler :: Lens' (Config m r) (ErrorHandler r)
 errorHandler f conf = fmap (`setErrorHandler` conf) (f (confErrorHandler conf))
 
 -- | A lens to access the 'Set' of 'Extension's to enable.
-extensions :: Lens' (Config m) (Set Extension)
+extensions :: Lens' (Config m r) (Set Extension)
 extensions f conf = fmap (\xs -> conf { confExtensions = xs }) (f (confExtensions conf))
 
 -- | Set the file 'Loader' in a 'Config'.
-setLoader :: Loader m -> Config m -> Config m
+setLoader :: Loader m -> Config m r -> Config m r
 setLoader l conf = conf { confLoader = l }
 
 -- | Set the file 'Loader' in a 'Config'.
-setErrorHandler :: ErrorHandler -> Config m -> Config m
+setErrorHandler :: ErrorHandler r -> Config m r -> Config m r
 setErrorHandler h conf = conf { confErrorHandler = h }
 
 -- | Add an 'Extension' to enable.
@@ -71,7 +71,7 @@ setErrorHandler h conf = conf { confErrorHandler = h }
 -- @
 -- 'addExtension' e = 'set' ('extensions' . contains e) True
 -- @
-addExtension :: Extension -> Config m -> Config m
+addExtension :: Extension -> Config m r -> Config m r
 addExtension x conf =
     conf { confExtensions = Set.insert x (confExtensions conf) }
 

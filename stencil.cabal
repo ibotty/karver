@@ -37,6 +37,7 @@ library
   exposed-modules: Text.Stencil
                    Text.Stencil.Config
                    Text.Stencil.Compiler
+                   Text.Stencil.ErrorHandler
                    Text.Stencil.Helper
                    Text.Stencil.ResolveIncludes
                    Text.Stencil.Parse

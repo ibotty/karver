@@ -1,71 +1,59 @@
 {-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Text.Stencil.Compiler
-  ( Renderer(..)
-  , Renderer'
-  , renderParsedTemplate
+  ( bindVariables
+  , BindVariables'
+  , render
   )
   where
 
-import Control.Applicative    ((<$>))
-import Control.Monad          (foldM)
-import Data.Monoid            (Monoid, mconcat, mempty, (<>))
-import Data.Text              (Text)
+import Data.Monoid            (mconcat, mempty)
 import Data.Text.Lazy.Builder (Builder)
 import Text.Stencil.Types
 
 import qualified Data.HashMap.Strict    as HM
-import qualified Data.Text              as T
-import qualified Data.Text.Lazy.Builder as TB
 import qualified Data.Vector            as V
 
-type Renderer' = (StencilError -> Either StencilError Text)
-               -> Context
-               -> Either StencilError Renderer
+type BindVariables' r = Context -> r
 
-renderParsedTemplate :: (StencilError -> Either StencilError Text)
-                     -> Context
-                     -> Renderer'
-                     -> Either StencilError Renderer
-renderParsedTemplate handler ctx tmpl = tmpl handler ctx
+bindVariables :: Context -> BindVariables' r -> r
+bindVariables ctx tmpl = tmpl ctx
 
-newtype Renderer = Renderer {rawRenderer :: Builder}
-  deriving Monoid
 
-instance JinjaSYM Renderer' where
-    tokens xs handler ctx = foldM step mempty xs
-      where
-        step text b = (text <>) <$> b handler ctx
+instance JinjaSYM r => JinjaSYM (Context -> r) where
+    tokens xs ctx = tokens $ map ($ ctx) xs
+    literal t _ = literal t
 
-    literal n _ _ = Right $ Renderer n
-
-    variable var handler ctx =
+instance (JinjaSYM r, JinjaVariableSYM r) => JinjaVariableSYM (Context -> r)
+  where
+    variable var ctx =
         case lookupVariable var ctx of
-          Just (Literal s) -> Right $ Renderer s
-          _                -> Renderer . TB.fromText <$> handler (LookupError var)
+          Just (Literal s) -> literal s
+          _                -> variable var
 
-    condition (VariableNotNull v) t f handler ctx = mconcat <$>
+    condition c@(VariableNotNull v) t f ctx =
         case lookupVariable v ctx of
           Just (Literal s) -> whenDo $ s /= mempty
           Just (List l)    -> whenDo $ not (V.null  l)
           Just (Object o)  -> whenDo $ not (HM.null o)
-          Nothing          -> whenDo =<< not . T.null <$> handler (LookupError v)
+          Nothing          -> condition c (map ($ ctx) t) (map ($ ctx) f)
       where
-        whenDo b = mapM (\i -> i handler ctx) (if b then t else f)
+        whenDo b = tokens $ map ($ ctx) (if b then t else f)
 
-    loop v (Identifier i) body handler ctx =
+    loop v ident@(Identifier i) body ctx =
         case lookupVariable v ctx of
-            Just (List l) -> V.foldM' step mempty l
-            _             -> handleError
+            Just (List l) -> tokens . V.toList $ V.map eachListElem l
+            _             -> loop v ident body ctx
       where
-        step :: Renderer -> Value -> Either StencilError Renderer
-        step text val =
-            (text <>) <$> foldM innerStep mempty body
+        eachListElem val = tokens $ map ($ newCtx) body
           where
-            innerStep :: Renderer -> Renderer' -> Either StencilError Renderer
-            innerStep t r = (t <>) <$> r handler newCtx
             newCtx = HM.insert i val ctx
 
-        handleError = Renderer . TB.fromText <$> handler (LookupError v)
+render :: Builder -> Builder
+render = id
+
+instance JinjaSYM Builder where
+    tokens = mconcat
+    literal = id

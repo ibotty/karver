@@ -34,10 +34,11 @@ import Data.Text            (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.Builder as TLB
 
-templateParser :: (JinjaSYM repr, JinjaIncludeSYM repr) => Parser repr
+templateParser :: (JinjaSYM repr, JinjaVariableSYM repr, JinjaIncludeSYM repr)
+               => Parser repr
 templateParser = fix includeParserExt
 
-templateParserExt :: JinjaSYM repr => Parser repr -> Parser repr
+templateParserExt :: (JinjaSYM repr, JinjaVariableSYM repr) => Parser repr -> Parser repr
 templateParserExt self = choice
   [ variableParser
   , conditionParser self
@@ -45,7 +46,7 @@ templateParserExt self = choice
   , literalParser
   ]
 
-includeParserExt :: (JinjaSYM repr, JinjaIncludeSYM repr)
+includeParserExt :: (JinjaSYM repr, JinjaVariableSYM repr, JinjaIncludeSYM repr)
                  => Parser repr -> Parser repr
 includeParserExt self = templateParserExt self <|> includeParser
 
@@ -95,7 +96,7 @@ variableParser_ fn = fn $ do
 -- * 'ListTok'
 --
 -- * 'ObjectTok'
-variableParser :: JinjaSYM repl => Parser repl
+variableParser :: JinjaVariableSYM repl => Parser repl
 variableParser  = variable <$> variableParser_ identityDelimiter
 
 -- | 'Parser' for all the variable types. Returning on of the following
@@ -118,7 +119,7 @@ skipSpaceTillEOL = option () $ skipWhile isHorizontalSpace >> endOfLine
 {-# INLINE skipSpaceTillEOL #-}
 
 -- | 'Parser' for if statements, that will result in the 'ConditionTok'
-conditionParser :: JinjaSYM repr => Parser repr -> Parser repr
+conditionParser :: JinjaVariableSYM repr => Parser repr -> Parser repr
 conditionParser self = do
   logic <- expressionDelimiter $ "if" *> skipSpace *> variableParser'
   ifbody <- ifparse
@@ -131,7 +132,7 @@ conditionParser self = do
     elseparse = option [] $ skipSpaceTillEOL *> many' self <* expressionDelimiter "endif"
 
 -- | 'Parser' for for loops, that will result in the 'LoopTok'
-loopParser :: JinjaSYM repr => Parser repr -> Parser repr
+loopParser :: JinjaVariableSYM repr => Parser repr -> Parser repr
 loopParser self = do
   (arr, var) <- expressionDelimiter $ do
     void "for"

@@ -22,6 +22,8 @@ pprint label t = PrettyPrinter $ label <> " " <> T.pack (show t)
 instance JinjaSYM PrettyPrinter where
     tokens = pprint "tokens "
     literal = pprint "literal"
+
+instance JinjaVariableSYM PrettyPrinter where
     variable = pprint "variable"
     condition c t f = pprint "condition" (c, t, f)
     loop l i b = pprint "loop" (l, i, b)
