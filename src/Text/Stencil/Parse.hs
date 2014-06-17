@@ -33,7 +33,7 @@ import Data.Text            (Text)
 
 import qualified Data.Text as T
 
-templateParser :: JinjaIncludeSYM repr => Parser repr
+templateParser :: (JinjaSYM repr, JinjaIncludeSYM repr) => Parser repr
 templateParser = fix includeParserExt
 
 -- | Top level 'Parser' that will translate 'Text' into ['Token']
@@ -45,7 +45,8 @@ templateParserExt self = choice
   , literalParser
   ]
 
-includeParserExt :: JinjaIncludeSYM repr => Parser repr -> Parser repr
+includeParserExt :: (JinjaSYM repr, JinjaIncludeSYM repr)
+                 => Parser repr -> Parser repr
 includeParserExt self = templateParserExt self <|> includeParser
 
 

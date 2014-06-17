@@ -91,7 +91,7 @@ class JinjaSYM repr where
     condition :: Condition -> [repr] -> [repr] -> repr
     loop :: Variable -> Identifier -> [repr] -> repr
 
-class JinjaSYM repr => JinjaIncludeSYM repr where
+class JinjaIncludeSYM repr where
     include :: FilePath -> repr
 
 instance (JinjaSYM repr, JinjaSYM repr') => JinjaSYM (repr, repr') where
