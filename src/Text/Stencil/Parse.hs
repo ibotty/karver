@@ -36,7 +36,6 @@ import qualified Data.Text as T
 templateParser :: (JinjaSYM repr, JinjaIncludeSYM repr) => Parser repr
 templateParser = fix includeParserExt
 
--- | Top level 'Parser' that will translate 'Text' into ['Token']
 templateParserExt :: JinjaSYM repr => Parser repr -> Parser repr
 templateParserExt self = choice
   [ variableParser
