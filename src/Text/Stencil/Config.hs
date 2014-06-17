@@ -18,7 +18,7 @@ import Text.Stencil.Helper
 import Text.Stencil.Types
 
 import Data.Functor.Identity (Identity(Identity), runIdentity)
-import Data.Functor.Constant (Constant(Constant), getConstant)
+import Control.Applicative (Const(Const), getConst)
 import Data.Set (Set)
 
 import qualified Data.Set as Set
@@ -90,5 +90,5 @@ set l = over l . const
 
 -- | Get the target of a lens.
 get :: Lens' a b -> a -> b
-get l = getConstant . l Constant
+get l = getConst . l Const
 
