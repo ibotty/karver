@@ -1,23 +1,25 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main (main) where
 
-import Control.Arrow (second)
-import Control.Applicative ((<$>), (<*>), (<|>), many)
-import Data.Aeson (decode')
-import Data.Monoid ((<>))
-import GHC.IO.Handle (Handle)
-import GHC.IO.Handle.FD (stdin, stdout, openFile)
-import Options.Applicative (Parser, str, metavar, argument, execParser, strOption, short, long, help, value, info, helper, progDesc, header, fullDesc)
-import Text.Stencil (Context, renderTemplateFile, defaultConfig)
-import Text.Stencil.Types (Value(Literal))
-import System.IO (IOMode(ReadMode, WriteMode), hSetBinaryMode)
-import System.Exit (exitFailure, exitSuccess)
+import Control.Applicative (many, (<$>), (<*>), (<|>))
+import Control.Arrow       (second)
+import Data.Aeson          (decode')
+import Data.Monoid         ((<>))
+import GHC.IO.Handle       (Handle)
+import GHC.IO.Handle.FD    (openFile, stdin, stdout)
+import Options.Applicative (Parser, argument, execParser, fullDesc, header,
+                            help, helper, info, long, metavar, progDesc, short,
+                            str, strOption, value)
+import System.Exit         (exitFailure, exitSuccess)
+import System.IO           (IOMode (ReadMode, WriteMode), hSetBinaryMode)
+import Text.Stencil        (Context, defaultConfig, renderTemplateFile)
+import Text.Stencil.Types  (Value (Literal))
 
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.HashMap.Strict as HM
-import qualified Data.Text as T
+import qualified Data.ByteString.Lazy    as BL
+import qualified Data.HashMap.Strict     as HM
+import qualified Data.Text               as T
+import qualified Data.Text.Lazy.Builder  as TLB
 import qualified Data.Text.Lazy.Encoding as TLE
-import qualified Data.Text.Lazy.Builder as TLB
 
 data FileOrHandle = File    FilePath
                   | Handle' Handle

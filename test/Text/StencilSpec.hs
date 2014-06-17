@@ -4,8 +4,8 @@ module Text.StencilSpec (spec) where
 
 import Text.Stencil
 
-import Prelude hiding (unlines, concat)
-import Data.Text.Lazy (Text, append, unlines, concat)
+import Data.Text.Lazy   (Text, append, concat, unlines)
+import Prelude          hiding (concat, unlines)
 import System.IO.Unsafe (unsafePerformIO)
 import Test.Hspec
 

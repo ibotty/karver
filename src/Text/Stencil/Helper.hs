@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Text.Stencil.Helper
   ( loadTemplatesInDir
@@ -8,8 +8,8 @@ module Text.Stencil.Helper
 import Text.Stencil.Types
 
 import Control.Exception (SomeException, try)
-import System.Directory     (doesFileExist, getCurrentDirectory)
-import System.FilePath      (normalise, (</>))
+import System.Directory  (doesFileExist, getCurrentDirectory)
+import System.FilePath   (normalise, (</>))
 
 import qualified Data.Text.Lazy.IO as TLIO
 

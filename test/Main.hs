@@ -2,18 +2,17 @@
 module Main (main) where
 
 import Control.Applicative ((<$>))
-import Data.Maybe (fromMaybe)
-import Data.Monoid ((<>))
-import Data.List (isSuffixOf)
-import Test.Tasty.Golden (goldenVsString)
+import Data.List           (isSuffixOf)
+import Data.Maybe          (fromMaybe)
+import Data.Monoid         ((<>))
+import System.Directory    (getDirectoryContents)
+import Test.Tasty.Golden   (goldenVsString)
 import Text.Stencil
-import System.Directory (getDirectoryContents)
 
-import qualified Test.Tasty as Tasty
-import qualified Data.Aeson as A
-import qualified Data.ByteString.Lazy as BL
--- import qualified Data.Text as T
+import qualified Data.Aeson              as A
+import qualified Data.ByteString.Lazy    as BL
 import qualified Data.Text.Lazy.Encoding as TLE
+import qualified Test.Tasty              as Tasty
 
 main :: IO ()
 main =

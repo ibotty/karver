@@ -11,8 +11,8 @@ module Text.Stencil.ErrorHandler
   ) where
 
 import Control.Applicative ((<$>), (<*>))
-import Data.Traversable (traverse)
-import Data.Monoid (mempty)
+import Data.Monoid         (mempty)
+import Data.Traversable    (traverse)
 import Text.Stencil.Types
 
 type ErrorHandler' r = ErrorHandler r -> Either StencilError r

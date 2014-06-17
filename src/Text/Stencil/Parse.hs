@@ -26,12 +26,12 @@ module Text.Stencil.Parse
 import Text.Stencil.Types
 
 import Control.Applicative  ((*>), (<$>), (<*), (<|>))
+import Control.Monad        (void)
 import Data.Attoparsec.Text
 import Data.Function        (fix)
-import Control.Monad (void)
 import Data.Text            (Text)
 
-import qualified Data.Text as T
+import qualified Data.Text              as T
 import qualified Data.Text.Lazy.Builder as TLB
 
 templateParser :: (JinjaSYM repr, JinjaVariableSYM repr, JinjaIncludeSYM repr)

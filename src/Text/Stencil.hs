@@ -1,5 +1,5 @@
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE OverloadedStrings #-}
 -- |
 -- Module:      Data.Stencil
 -- Copyright:   Tobias Florek 2014
@@ -23,16 +23,16 @@ module Text.Stencil
 , module Text.Stencil.Types
 ) where
 
-import Text.Stencil.Config
 import Text.Stencil.Compiler
+import Text.Stencil.Config
 import Text.Stencil.ErrorHandler
 import Text.Stencil.Helper
 import Text.Stencil.Parse
 import Text.Stencil.ResolveIncludes
 import Text.Stencil.Types
 
-import Control.Applicative  (Applicative, many, (<$>))
-import Data.Aeson           (decode')
+import Control.Applicative       (Applicative, many, (<$>))
+import Data.Aeson                (decode')
 import Data.Attoparsec.Text.Lazy (eitherResult, parse)
 
 import qualified Data.ByteString.Lazy   as BL

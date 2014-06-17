@@ -8,9 +8,9 @@ module Text.Stencil.ResolveIncludes
   )
   where
 
-import Control.Applicative  (Applicative, (<$>), (<*>), pure)
-import Data.Attoparsec.Text.Lazy (Parser, parse, maybeResult)
-import Data.Traversable (traverse)
+import Control.Applicative       (Applicative, pure, (<$>), (<*>))
+import Data.Attoparsec.Text.Lazy (Parser, maybeResult, parse)
+import Data.Traversable          (traverse)
 import Text.Stencil.Types
 
 import qualified Data.Text.Lazy as TL

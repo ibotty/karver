@@ -4,8 +4,8 @@ module Text.Stencil.PrettyPrinter
   , printAST
   ) where
 
-import Data.Monoid       ((<>))
-import Data.Text         (Text)
+import Data.Monoid        ((<>))
+import Data.Text          (Text)
 import Text.Stencil.Types
 
 import qualified Data.Text as T

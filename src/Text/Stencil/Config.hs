@@ -17,9 +17,9 @@ module Text.Stencil.Config
 import Text.Stencil.Helper
 import Text.Stencil.Types
 
-import Data.Functor.Identity (Identity(Identity), runIdentity)
-import Control.Applicative (Const(Const), getConst)
-import Data.Set (Set)
+import Control.Applicative   (Const (Const), getConst)
+import Data.Functor.Identity (Identity (Identity), runIdentity)
+import Data.Set              (Set)
 
 import qualified Data.Set as Set
 
@@ -27,8 +27,8 @@ data Extension = LoadIncludes
   deriving (Eq, Show, Read, Ord, Bounded)
 
 data Config m r = Config
-  { confLoader :: Loader m
-  , confExtensions :: Set Extension
+  { confLoader       :: Loader m
+  , confExtensions   :: Set Extension
   , confErrorHandler :: ErrorHandler r
   }
 

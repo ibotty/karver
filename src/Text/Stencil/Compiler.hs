@@ -1,6 +1,6 @@
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Text.Stencil.Compiler
   ( bindVariables
@@ -13,8 +13,8 @@ import Data.Monoid            (mconcat, mempty)
 import Data.Text.Lazy.Builder (Builder)
 import Text.Stencil.Types
 
-import qualified Data.HashMap.Strict    as HM
-import qualified Data.Vector            as V
+import qualified Data.HashMap.Strict as HM
+import qualified Data.Vector         as V
 
 type BindVariables' r = Context -> r
 
