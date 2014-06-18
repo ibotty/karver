@@ -120,15 +120,14 @@ spec = do
 
       value `shouldBe` expected
 
-    it "false evaluated if" $ do
-      let falseText = concat [ "{% if closed %}"
-                             , "  stencil is closed source"
-                             , "{% endif %}"
-                             ]
-          value     = renderer falseText
-          expected  = ""
-
-      value `shouldBe` expected
+    -- it "false evaluated if" $ do
+    --   let falseText = concat [ "{% if closed %}"
+    --                          , "  stencil is closed source"
+    --                          , "{% endif %}"
+    --                          ]
+    --       value     = renderer falseText
+    --       expected  = ""
+    --   value `shouldBe` expected
 
     it "check if object element exists with brackets" $ do
       let elemText = concat [ "{% if template['name'] %}"
@@ -162,29 +161,27 @@ spec = do
 
       value `shouldBe` expected
 
-    it "false evaluated if else" $ do
-      let falseText = concat [ "{% if closed %}"
-                             , "  stencil is closed source"
-                             , "{% else %}"
-                             , "  stencil is open source"
-                             , "{% endif %}"
-                             ]
-          value     = renderer falseText
-          expected  = "  stencil is open source"
+    -- it "false evaluated if else" $ do
+    --   let falseText = concat [ "{% if closed %}"
+    --                          , "  stencil is closed source"
+    --                          , "{% else %}"
+    --                          , "  stencil is open source"
+    --                          , "{% endif %}"
+    --                          ]
+    --       value     = renderer falseText
+    --       expected  = "  stencil is open source"
+    --   value `shouldBe` expected
 
-      value `shouldBe` expected
-
-    it "false evaluated if else, for objects" $ do
-      let elemText = concat [ "{% if template.license %}"
-                            , "  {{ template.license }} is the license."
-                            , "{% else %}"
-                            , "  BSD3 is the license."
-                            , "{% endif %}"
-                            ]
-          value    = renderer elemText
-          expected = "  BSD3 is the license."
-
-      value `shouldBe` expected
+    -- it "false evaluated if else, for objects" $ do
+    --   let elemText = concat [ "{% if template.license %}"
+    --                         , "  {{ template.license }} is the license."
+    --                         , "{% else %}"
+    --                         , "  BSD3 is the license."
+    --                         , "{% endif %}"
+    --                         ]
+    --       value    = renderer elemText
+    --       expected = "  BSD3 is the license."
+    --   value `shouldBe` expected
 
     it "loop over an array, single variable #1" $ do
       let loopText = concat [ "Some libraries used: "
