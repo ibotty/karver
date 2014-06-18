@@ -64,8 +64,9 @@ commentParser' :: Parser ()
 commentParser' = "{#" *> inComment
 
 inComment :: Parser ()
-inComment = () <$
-        "#}"
+inComment =
+        "#}" *> endOfLine
+    <|> () <$ "#}"
     <|> commentParser' *> inComment
     <|> skipMany1 (takeWhile1 (notInClass startEndChars)) *> inComment
     <|> satisfy (inClass startEndChars) *> inComment
