@@ -25,9 +25,10 @@ module Text.Stencil.Parse
 
 import Text.Stencil.Types
 
-import Control.Applicative  ((*>), (<$>), (<*), (<|>))
+import Control.Applicative  ((*>), (<$>), (<*), (<|>), pure)
 import Control.Monad        (void)
 import Data.Attoparsec.Text
+import Data.Monoid          (mempty)
 import Data.Function        (fix)
 import Data.Text            (Text)
 
@@ -44,12 +45,25 @@ templateParserExt self = choice
   , conditionParser self
   , loopParser self
   , literalParser
+  , commentParser
   ]
 
 includeParserExt :: (JinjaSYM repr, JinjaVariableSYM repr, JinjaIncludeSYM repr)
                  => Parser repr -> Parser repr
 includeParserExt self = templateParserExt self <|> includeParser
 
+commentParser :: JinjaSYM r => Parser r
+commentParser = pure (literal mempty) <* commentParser'
+
+commentParser' :: Parser Text
+commentParser' =
+    "{#" *> (emptyCommentParser <|> T.concat <$> commentChunksParser)
+
+emptyCommentParser :: Parser Text
+emptyCommentParser = "#}" *> pure T.empty
+
+commentChunksParser :: Parser [Text]
+commentChunksParser = manyTill (takeWhile1 (/= '#')) "#}"
 
 -- | Takes everything until it reaches a @{@, resulting in the 'LiteralTok'
 literalParser :: JinjaSYM repr => Parser repr
