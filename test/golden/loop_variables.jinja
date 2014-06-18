@@ -1,0 +1,5 @@
+{% for item in listVar %}
+ * item #{{loop.index}} (- {{loop.revindex}}) / {{loop.length}}, 0-based: {{loop.index0}} (- {{loop.revindex0}})
+    {% if loop.last %}is the last{% endif %}{%if loop.first %}is the first{% endif %}
+
+{% endfor %}

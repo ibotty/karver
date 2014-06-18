@@ -13,8 +13,9 @@ import Data.Monoid            (mconcat, mempty)
 import Data.Text.Lazy.Builder (Builder)
 import Text.Stencil.Types
 
-import qualified Data.HashMap.Strict as HM
-import qualified Data.Vector         as V
+import qualified Data.HashMap.Strict    as HM
+import qualified Data.Text.Lazy.Builder as TLB
+import qualified Data.Vector            as V
 
 type BindVariables' r = Context -> r
 
@@ -44,12 +45,26 @@ instance (JinjaSYM r, JinjaVariableSYM r) => JinjaVariableSYM (Context -> r)
 
     loop v ident@(Identifier i) body ctx =
         case lookupVariable v ctx of
-            Just (List l) -> tokens . V.toList $ V.map eachListElem l
+            Just (List l) -> tokens . V.toList $ V.imap (eachListElem (V.length l)) l
             _             -> loop v ident body ctx
       where
-        eachListElem val = tokens $ map ($ newCtx) body
+        eachListElem lLength ix val = tokens $ map ($ newCtx) body
           where
-            newCtx = HM.insert i val ctx
+            newCtx = HM.insert "loop" (Object $ HM.fromList loopObject)
+                   $ HM.insert i val
+                     ctx
+            -- TODO: revisit first, last when proper boolean handling happens
+            -- TODO: implement cycle, depth, depth0
+            loopObject = [ ("index", show' (ix + 1))
+                         , ("index0", show' ix)
+                         , ("revindex0", show' (revIx - 1))
+                         , ("revindex", show' revIx)
+                         , ("length", show' lLength)
+                         , ("first", if ix == 0 then "True" else "" )
+                         , ("last", if revIx == 1 then "True" else "" )
+                         ]
+            revIx = lLength - ix
+            show' = Literal . TLB.fromString . show
 
 render :: Builder -> Builder
 render = id
