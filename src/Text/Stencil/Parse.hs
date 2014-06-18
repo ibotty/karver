@@ -15,6 +15,10 @@
 module Text.Stencil.Parse
 ( templateParserExt
 , templateParser
+, commentParser
+, commentParser'
+, rawParser
+, rawParser'
 , literalParser
 , variableParser
 , variableParser'
@@ -25,11 +29,11 @@ module Text.Stencil.Parse
 
 import Text.Stencil.Types
 
-import Control.Applicative  (pure, (*>), (<$>), (<*), (<|>))
+import Control.Applicative  (pure, (*>), (<$>), (<*), (<*>), (<|>), (<$))
 import Control.Monad        (void)
 import Data.Attoparsec.Text
 import Data.Function        (fix)
-import Data.Monoid          (mempty)
+import Data.Monoid          (mappend, mempty)
 import Data.Text            (Text)
 
 import qualified Data.Text              as T
@@ -44,8 +48,9 @@ templateParserExt self = choice
   [ variableParser
   , conditionParser self
   , loopParser self
-  , literalParser
+  , rawParser
   , commentParser
+  , literalParser
   ]
 
 includeParserExt :: (JinjaSYM repr, JinjaVariableSYM repr, JinjaIncludeSYM repr)
@@ -55,15 +60,31 @@ includeParserExt self = templateParserExt self <|> includeParser
 commentParser :: JinjaSYM r => Parser r
 commentParser = pure (literal mempty) <* commentParser'
 
-commentParser' :: Parser Text
-commentParser' =
-    "{#" *> (emptyCommentParser <|> T.concat <$> commentChunksParser)
+commentParser' :: Parser ()
+commentParser' = "{#" *> inComment
 
-emptyCommentParser :: Parser Text
-emptyCommentParser = "#}" *> pure T.empty
+inComment :: Parser ()
+inComment = () <$
+        "#}"
+    <|> commentParser' *> inComment
+    <|> skipMany1 (takeWhile1 (notInClass startEndChars)) *> inComment
+    <|> satisfy (inClass startEndChars) *> inComment
+  where
+    startEndChars = "{}#"
 
-commentChunksParser :: Parser [Text]
-commentChunksParser = manyTill (takeWhile1 (/= '#')) "#}"
+rawParser :: JinjaSYM r => Parser r
+rawParser = literal <$> rawParser'
+
+rawParser' :: Parser TLB.Builder
+rawParser' = expressionDelimiter "raw" *> inRawParser
+
+inRawParser :: Parser TLB.Builder
+inRawParser =  (expressionDelimiter "endraw" *> pure mempty)
+           <|> (mappend <$> fmap TLB.fromText (takeWhile1 (notInClass startEndChars)) <*> inRawParser)
+           <|> (mappend <$> fmap TLB.singleton (satisfy (inClass startEndChars)) <*> inRawParser)
+    -- mconcat . map TLB.fromText <$> chunksTill '{' (expressionDelimiter "endraw"))
+  where
+    startEndChars = "{}% endraw\t"
 
 -- | Takes everything until it reaches a @{@, resulting in the 'LiteralTok'
 literalParser :: JinjaSYM repr => Parser repr
