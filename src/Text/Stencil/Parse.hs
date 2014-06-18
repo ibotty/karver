@@ -25,11 +25,11 @@ module Text.Stencil.Parse
 
 import Text.Stencil.Types
 
-import Control.Applicative  ((*>), (<$>), (<*), (<|>), pure)
+import Control.Applicative  (pure, (*>), (<$>), (<*), (<|>))
 import Control.Monad        (void)
 import Data.Attoparsec.Text
-import Data.Monoid          (mempty)
 import Data.Function        (fix)
+import Data.Monoid          (mempty)
 import Data.Text            (Text)
 
 import qualified Data.Text              as T
