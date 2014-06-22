@@ -20,11 +20,13 @@ module Text.Stencil
 , loadTemplatesInDir
 , loadTemplates
 , defaultConfig
+, defaultContext
 , module Text.Stencil.Types
 ) where
 
 import Text.Stencil.Compiler
 import Text.Stencil.Config
+import Text.Stencil.Context
 import Text.Stencil.ErrorHandler
 import Text.Stencil.Helper
 import Text.Stencil.Parse
@@ -66,13 +68,12 @@ renderTemplate config ctx tmpl =
       Left err -> return . Left $ InvalidTemplate "(inline)" err
   where
     parser = templateParser
-    handler = get errorHandler config
     loader' = get loader config
 
 renderTemplateFile
   :: (Functor m, Applicative m, Monad m)
   => Config m r -- ^ Configuration
-  -> Context  -- ^ Context
+  -> Context    -- ^ Context
   -> FilePath -- ^ template to load using 'Config''s 'Loader'
   -> m (Either StencilError TL.Text)
 renderTemplateFile conf ctx file = get loader conf file >>=
@@ -88,7 +89,7 @@ renderTemplate' :: FilePath -- ^ file with JSON data, for variables inside a giv
 renderTemplate' file tpl =
   decode' <$> BL.readFile file >>= \case
     (Just ctx) -> either err id <$>
-        renderTemplate config ctx tpl
+        renderTemplate config (defaultContext ctx) tpl
     Nothing     -> error "renderTemplate': could not decode JSON."
   where err e = error $ "renderTemplate': something went wrong: " ++ show e
         config = defaultConfig -- set errorHandler continueHandler defaultConfig
@@ -104,7 +105,7 @@ renderTemplate'' :: BL.ByteString -- ^ file with JSON data, for variables inside
 renderTemplate'' json tpl =
   case decode' json of
     (Just ctx) -> either err id <$>
-        renderTemplate config ctx tpl
+        renderTemplate config (defaultContext ctx) tpl
     Nothing     -> error "renderTemplate': could not decode JSON."
   where err e = error $ "renderTemplate': something went wrong: " ++ show e
         config = defaultConfig -- set errorHandler continueHandler defaultConfig

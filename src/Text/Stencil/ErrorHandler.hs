@@ -29,11 +29,11 @@ newtype IgnoreHandler r = IgnoreHandler { ignoreHandler :: r }
 -- ignoreHandler :: IgnoreHandler r -> r
 -- IgnoreHandler = ignoreHandler
 
-noHandleHandler :: ErrorHandler r
-noHandleHandler = Left
+-- noHandleHandler :: ErrorHandler r
+-- noHandleHandler = Left
 
-continueHandler :: JinjaSYM r => ErrorHandler r
-continueHandler = const . Right $ literal mempty
+-- continueHandler :: JinjaSYM r => ErrorHandler r
+-- continueHandler = const . Right $ literal mempty
 
 instance JinjaSYM r => JinjaSYM (IgnoreHandler r) where
     tokens = IgnoreHandler . tokens . map ignoreHandler
@@ -48,7 +48,7 @@ instance JinjaSYM r => JinjaVariableSYM (IgnoreHandler r) where
     loop _ _ _ = literal mempty
 
 instance JinjaSYM r => JinjaSYM (FailHandler r) where
-    tokens = FailHandler . fmap tokens . sequence . map failHandler
+    tokens = FailHandler . fmap tokens . traverse failHandler
     literal = FailHandler . Right . literal
 
 instance JinjaVariableSYM (FailHandler r) where
@@ -61,16 +61,16 @@ instance JinjaIncludeSYM (FailHandler r) where
 
 
 instance JinjaSYM r => JinjaSYM (FailIncludesHandler r) where
-    tokens = FailIncludesHandler . fmap tokens . sequence . map failIncludesHandler
+    tokens = FailIncludesHandler . fmap tokens . traverse failIncludesHandler
     literal = FailIncludesHandler . Right . literal
 
 instance JinjaVariableSYM r => JinjaVariableSYM (FailIncludesHandler r) where
     variable = FailIncludesHandler . Right . variable
     condition v i e = FailIncludesHandler $
-        condition v <$> sequence (map failIncludesHandler i)
-                    <*> sequence (map failIncludesHandler e)
+        condition v <$> traverse failIncludesHandler i
+                    <*> traverse failIncludesHandler e
     loop v e b = FailIncludesHandler $
-        loop v e <$> sequence (map failIncludesHandler b)
+        loop v e <$> traverse failIncludesHandler b
 
 instance JinjaIncludeSYM (FailIncludesHandler r) where
     include = FailIncludesHandler . Left . NoSuchInclude

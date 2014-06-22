@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE OverloadedStrings  #-}
 -- |
 -- Module:      Data.Stencil.Types
 -- Copyright:   Tobias Florek 2014
@@ -11,7 +12,15 @@
 -- Base types used throughout Stencil.
 
 module Text.Stencil.Types
-  ( Context
+  ( Context(..)
+  , Dict
+  , List
+  , defaultAsBool
+  , defaultAsDict
+  , asEscapedNoEscape
+  , defaultAsList
+  , defaultAsText
+  , asEscapedWithEscaper
   , Value(..)
   , StencilError(..)
   , ErrorHandler
@@ -36,12 +45,33 @@ import Data.Text.Lazy.Builder (Builder)
 import Data.Typeable          (Typeable)
 import Data.Vector            (Vector, (!?))
 
-import qualified Data.Aeson             as A
-import qualified Data.HashMap.Strict    as HM
-import qualified Data.Text.Lazy         as TL
-import qualified Data.Text.Lazy.Builder as TLB
+import qualified Data.Aeson          as A
+import qualified Data.HashMap.Strict as HM
+import qualified Data.Text           as T
+import qualified Data.Text.Lazy      as TL
+import qualified Data.Vector         as V
 
-type Context = HashMap Text Value
+
+type List = Vector Value
+type Dict = HashMap Text Value
+
+data Context = Context { asEscaped :: Value -> Maybe Text
+                       , asText    :: Value -> Maybe Text
+                       , asList    :: Value -> Maybe List
+                       , asDict    :: Value -> Maybe Dict
+                       , asBool    :: Value -> Maybe Bool
+                       , dict      :: Dict
+                       }
+
+-- that should be more typesafe. see upcoming lambda definition.
+-- but what to do with dicts and lists? Tags (a la Typeable)?
+data Value = EscapedV Text
+           | TextV    Text
+           | DictV    Dict
+           | ListV    List
+           | BoolV    Bool
+           | IntV     Int
+           -- Lambda   :: (b -> a) -> Value
 
 data StencilError = InvalidTemplate Text String
                   | InvalidTemplateFile FilePath
@@ -63,16 +93,54 @@ data Variable = Variable Text
               | ListIndex Text Int
   deriving (Eq, Ord, Read, Show)
 
+asEscapedWithEscaper :: (Text -> Text) -> Value -> Maybe Text
+asEscapedWithEscaper _ (EscapedV t) = Just t
+asEscapedWithEscaper escape v       = escape <$> defaultAsText v
+
+asEscapedNoEscape :: Value -> Maybe Text
+asEscapedNoEscape = asEscapedWithEscaper id
+
+defaultAsText :: Value -> Maybe Text
+defaultAsText (TextV t)     = Just t
+defaultAsText (EscapedV t)  = Just t
+defaultAsText (IntV i)      = Just . T.pack $ show i
+defaultAsText (BoolV True)  = Just "True"
+defaultAsText (BoolV False) = Just "False"
+defaultAsText _             = Nothing
+
+defaultAsDict :: Value -> Maybe Dict
+defaultAsDict (DictV d) = Just d
+defaultAsDict (ListV l) =
+    Just . HM.fromList $ V.ifoldl' step mempty l
+  where
+    step xs i x = (T.pack (show i), x) : xs
+defaultAsDict _         = Nothing
+
+defaultAsList :: Value -> Maybe List
+defaultAsList (ListV l) = Just l
+defaultAsList _         = Nothing
+
+defaultAsBool :: Value -> Maybe Bool
+defaultAsBool (BoolV b)    = Just b
+defaultAsBool (IntV  i)    = Just $ i > 0
+defaultAsBool (TextV t)    = Just . not $ T.null t
+defaultAsBool (EscapedV t) = Just . not $ T.null t
+defaultAsBool (ListV l)    = Just . not $ V.null l
+defaultAsBool (DictV d)    = Just . not $ HM.null d
+
+lookupKey :: Context -> Text -> Maybe Value
+lookupKey ctx k = HM.lookup k (dict ctx)
+
 lookupVariable :: Variable -> Context -> Maybe Value
-lookupVariable (Variable v) ctx = HM.lookup v ctx
+lookupVariable (Variable v)    ctx = lookupKey ctx v
 lookupVariable (ObjectKey v k) ctx =
-    case HM.lookup v ctx of
-      Just (Object o) -> HM.lookup k o
-      _               -> Nothing
+    case lookupKey ctx v of
+      Just (DictV d) -> HM.lookup k d
+      _              -> Nothing
 lookupVariable (ListIndex v i) ctx =
-    case HM.lookup v ctx of
-      Just (List l) -> l !? i
-      _             -> Nothing
+    case lookupKey ctx v of
+      Just (ListV l) -> l !? i
+      _              -> Nothing
 
 
 newtype Key = Key Text
@@ -117,25 +185,11 @@ instance (JinjaIncludeSYM repr, JinjaIncludeSYM repr') => JinjaIncludeSYM (repr,
 duplicate :: (repr, repr') -> (repr, repr')
 duplicate = id
 
--- | Fairly basic work around for using different types inside a 'HashMap'.
--- The 'Value' type also make it possible for 'List' to contain more than
--- one type.
-data Value = Literal Builder
-           -- ^ The base value for the storing of variable.
-           | Object Context
-           -- ^ An alias for 'Context', that will only hold 'Text' with
-           --   'Text' as a key as well.
-           | List   (Vector Value)
-           -- ^ An alias for 'Vector', that can hold all three 'Value's
-           --   — which isn't desirable, because their can be nested
-           --   'List's.
-           deriving (Show, Eq)
-
 instance A.FromJSON Value where
-  parseJSON o@(A.Object _) = Object <$> A.parseJSON o
-  parseJSON a@(A.Array _)  = List <$> A.parseJSON a
-  parseJSON v              = Literal . TLB.fromText <$> A.parseJSON v
-  {-# INLINE parseJSON #-}
+    parseJSON o@(A.Object _) = DictV <$> A.parseJSON o
+    parseJSON a@(A.Array _)  = ListV <$> A.parseJSON a
+    parseJSON v              = TextV . fromString <$> A.parseJSON v
+    {-# INLINE parseJSON #-}
 
 instance IsString Value where
-  fromString = Literal . TLB.fromString
+    fromString = EscapedV . fromString

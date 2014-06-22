@@ -23,7 +23,7 @@ setupGoldenTests dir = do
     ctx <- fromMaybe (error "cannot decode context.json") . A.decode'
            <$> BL.readFile (testDir <> "/context.json")
     let run f = fmap (either renderFailure TLE.encodeUtf8)
-              . renderTemplate defaultConfig ctx
+              . renderTemplate defaultConfig (defaultContext ctx)
               =<<  TLE.decodeUtf8 <$> BL.readFile f
         testFromFile f = goldenVsString f (f <> ".golden") (run f)
 

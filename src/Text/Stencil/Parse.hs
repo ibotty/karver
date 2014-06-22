@@ -29,7 +29,7 @@ module Text.Stencil.Parse
 
 import Text.Stencil.Types
 
-import Control.Applicative  (pure, (*>), (<$>), (<*), (<*>), (<|>), (<$))
+import Control.Applicative  (pure, (*>), (<$), (<$>), (<*), (<*>), (<|>))
 import Control.Monad        (void)
 import Data.Attoparsec.Text
 import Data.Function        (fix)

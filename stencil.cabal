@@ -36,6 +36,7 @@ library
   hs-source-dirs: src
   exposed-modules: Text.Stencil
                    Text.Stencil.Config
+                   Text.Stencil.Context
                    Text.Stencil.Compiler
                    Text.Stencil.ErrorHandler
                    Text.Stencil.Helper
