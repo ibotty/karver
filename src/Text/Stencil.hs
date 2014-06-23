@@ -13,16 +13,14 @@
 -- syntax, to a generated value — based on the data that was given.
 
 module Text.Stencil
-( renderTemplate
-, renderTemplateFile
-, renderTemplate'
-, renderTemplate''
-, loadTemplatesInDir
-, loadTemplates
-, defaultConfig
-, defaultContext
-, module Text.Stencil.Types
-) where
+  ( renderTemplate
+  , renderTemplateFile
+  , renderTemplate'
+  , renderTemplate''
+  , loadTemplatesInDir
+  , loadTemplates
+  , defaultConfig
+  ) where
 
 import Text.Stencil.Compiler
 import Text.Stencil.Config
@@ -43,7 +41,7 @@ import qualified Data.Text.Lazy.Builder as TLB
 
 {- | Render a template using given 'Config'.
 
->>> let ctx = HM.fromList [("key", Literal "value")]
+>>> let ctx = HM.fromList [("key", TextV "value")]
 >>> let tmpl = "{% if key %}the value of key is {{ key }}.{% endif %}"
 >>> renderTemplate defaultConfig ctx tmpl
 Right "the value of key is value."
@@ -51,13 +49,13 @@ Right "the value of key is value."
 renderTemplate :: (Functor m, Applicative m, Monad m)
                => Config m r
                -- ^ Configuration
-               -> Context
+               -> Dict
                -- ^ Data map for variables inside
                --   a given template
                -> TL.Text
                -- ^ Template
                -> m (Either StencilError TL.Text)
-renderTemplate config ctx tmpl =
+renderTemplate config d tmpl =
     case eitherResult $ parse (many parser) tmpl of
       Right r -> do
           eResolved <- failIncludesHandler <$> resolveIncludes loader' parser (tokens r)
@@ -69,11 +67,12 @@ renderTemplate config ctx tmpl =
   where
     parser = templateParser
     loader' = get loader config
+    ctx = defaultContext d
 
 renderTemplateFile
   :: (Functor m, Applicative m, Monad m)
   => Config m r -- ^ Configuration
-  -> Context    -- ^ Context
+  -> Dict       -- ^ Context dictionary
   -> FilePath -- ^ template to load using 'Config''s 'Loader'
   -> m (Either StencilError TL.Text)
 renderTemplateFile conf ctx file = get loader conf file >>=
@@ -89,7 +88,7 @@ renderTemplate' :: FilePath -- ^ file with JSON data, for variables inside a giv
 renderTemplate' file tpl =
   decode' <$> BL.readFile file >>= \case
     (Just ctx) -> either err id <$>
-        renderTemplate config (defaultContext ctx) tpl
+        renderTemplate config ctx tpl
     Nothing     -> error "renderTemplate': could not decode JSON."
   where err e = error $ "renderTemplate': something went wrong: " ++ show e
         config = defaultConfig -- set errorHandler continueHandler defaultConfig
@@ -105,7 +104,7 @@ renderTemplate'' :: BL.ByteString -- ^ file with JSON data, for variables inside
 renderTemplate'' json tpl =
   case decode' json of
     (Just ctx) -> either err id <$>
-        renderTemplate config (defaultContext ctx) tpl
+        renderTemplate config ctx tpl
     Nothing     -> error "renderTemplate': could not decode JSON."
   where err e = error $ "renderTemplate': something went wrong: " ++ show e
         config = defaultConfig -- set errorHandler continueHandler defaultConfig
