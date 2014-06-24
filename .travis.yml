@@ -20,14 +20,10 @@ before_install:
 install:
  - cabal-1.18 update
  - cabal-1.18 install --only-dependencies --enable-tests -f buildExecutable
- - cabal-1.18 install happy --constraint 'happy >=1.17'
- - cabal-1.18 install packdeps packunused
 
 script:
  - cabal-1.18 configure --enable-tests -v2
- - cabal-1.18 build --ghc-options=-ddump-minimal-imports
+ - cabal-1.18 build
  - cabal-1.18 test
  - cabal-1.18 check
  - cabal-1.18 sdist
- - packdeps stencil.cabal
- - packunused
