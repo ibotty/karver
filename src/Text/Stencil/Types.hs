@@ -36,15 +36,17 @@ module Text.Stencil.Types
   , lookupVariable
   ) where
 
+#if !MIN_VERSION_base(4,8,0)
 import Control.Applicative    ((<$>))
-import Data.HashMap.Strict    (HashMap)
 import Data.Monoid            (Monoid, mappend, mempty)
+#endif
+
+import Data.HashMap.Strict    (HashMap)
 import Data.String            (IsString, fromString)
 import Data.Text              (Text)
 import Data.Text.Lazy.Builder (Builder)
 import Data.Typeable          (Typeable)
 import Data.Vector            (Vector, (!?))
-import Prelude
 
 import qualified Data.Aeson          as A
 import qualified Data.HashMap.Strict as HM
