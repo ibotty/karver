@@ -44,6 +44,7 @@ import Data.Text              (Text)
 import Data.Text.Lazy.Builder (Builder)
 import Data.Typeable          (Typeable)
 import Data.Vector            (Vector, (!?))
+import Prelude
 
 import qualified Data.Aeson          as A
 import qualified Data.HashMap.Strict as HM
