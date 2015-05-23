@@ -37,6 +37,10 @@ module Text.Stencil.Types
   , lookupVariable
   ) where
 
+#ifndef MIN_VERSION_base
+#define MIN_VERSION_base(x,y,z) 1
+#endif
+
 #if !MIN_VERSION_base(4,8,0)
 import Control.Applicative    ((<$>))
 import Data.Monoid            (Monoid, mappend, mempty)
