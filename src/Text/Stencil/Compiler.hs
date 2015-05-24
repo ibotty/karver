@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -9,7 +10,14 @@ module Text.Stencil.Compiler
   )
   where
 
+#ifndef MIN_VERSION_base
+#define MIN_VERSION_base(x,y,z) 1
+#endif
+
+#if !MIN_VERSION_base(4,8,0)
 import Data.Monoid            (mconcat)
+#endif
+
 import Data.Text.Lazy.Builder (Builder)
 import Text.Stencil.Types
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 -- |
@@ -31,7 +32,15 @@ import Text.Stencil.Parse
 import Text.Stencil.ResolveIncludes
 import Text.Stencil.Types
 
-import Control.Applicative       (Applicative, many, (<$>))
+#ifndef MIN_VERSION_base
+#define MIN_VERSION_base(x,y,z) 1
+#endif
+
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative       (Applicative, (<$>))
+#endif
+
+import Control.Applicative       (many)
 import Data.Aeson                (decode')
 import Data.Attoparsec.Text.Lazy (eitherResult, parse)
 

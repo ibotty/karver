@@ -1,16 +1,24 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE LambdaCase           #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
 module Text.Stencil.ResolveIncludes
   ( ResolveIncludes()
   , resolveIncludes
   )
   where
 
+#ifndef MIN_VERSION_base
+#define MIN_VERSION_base(x,y,z) 1
+#endif
+
+#if !MIN_VERSION_base(4,8,0)
 import Control.Applicative       (Applicative, pure, (<$>), (<*>))
-import Data.Attoparsec.Text.Lazy (Parser, maybeResult, parse)
 import Data.Traversable          (traverse)
+#endif
+
+import Data.Attoparsec.Text.Lazy (Parser, maybeResult, parse)
 import Text.Stencil.Types
 
 import qualified Data.Text.Lazy as TL

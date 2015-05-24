@@ -10,6 +10,7 @@
 -- All the 'Parser's are defined here, including the one used by the top
 -- level module "Text.Stencil".
 
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Text.Stencil.Parse
@@ -29,11 +30,19 @@ module Text.Stencil.Parse
 
 import Text.Stencil.Types
 
-import Control.Applicative  (pure, (*>), (<$), (<$>), (<*), (<*>), (<|>))
+#ifndef MIN_VERSION_base
+#define MIN_VERSION_base(x,y,z) 1
+#endif
+
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative  (pure, (*>), (<$), (<$>), (<*), (<*>))
+import Data.Monoid          (mappend, mempty)
+#endif
+
+import Control.Applicative  ((<|>))
 import Control.Monad        (void)
 import Data.Attoparsec.Text
 import Data.Function        (fix)
-import Data.Monoid          (mappend, mempty)
 import Data.Text            (Text)
 
 import qualified Data.Text              as T

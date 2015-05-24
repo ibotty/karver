@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Text.Stencil.ErrorHandler
@@ -10,9 +11,16 @@ module Text.Stencil.ErrorHandler
   -- , continueHandler
   ) where
 
+#ifndef MIN_VERSION_base
+#define MIN_VERSION_base(x,y,z) 1
+#endif
+
+#if !MIN_VERSION_base(4,8,0)
 import Control.Applicative ((<$>), (<*>))
 import Data.Monoid         (mempty)
 import Data.Traversable    (traverse)
+#endif
+
 import Text.Stencil.Types
 
 type ErrorHandler' r = ErrorHandler r -> Either StencilError r
