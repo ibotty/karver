@@ -32,7 +32,7 @@ flag newTransformers
   manual: False
 
 library
-  ghc-options:    -Wall -Werror
+  ghc-options:    -Wall
   hs-source-dirs: src
   exposed-modules: Text.Stencil
                    Text.Stencil.Config
