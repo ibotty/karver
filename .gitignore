@@ -10,3 +10,6 @@ dist/
 
 # Generated docs
 docs/
+
+# Stack
+.stack-work/
