@@ -116,4 +116,5 @@ test-suite doctest
                   , stencil
                   , Glob
                   , doctest
-
+                  , directory
+                  , filepath
