@@ -1,0 +1,8 @@
+flags:
+  stencil:
+    newtransformers: true
+    buildexecutable: false
+packages:
+- '.'
+extra-deps: []
+resolver: lts-3.13
